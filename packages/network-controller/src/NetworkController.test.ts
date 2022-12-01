@@ -1,15 +1,61 @@
 import * as sinon from 'sinon';
-import Web3ProviderEngine from 'web3-provider-engine';
 import { ControllerMessenger } from '@metamask/base-controller';
 import { NetworkType, NetworksChainId } from '@metamask/controller-utils';
+import SafeEventEmitter from '@metamask/safe-event-emitter';
+import nock from 'nock';
 import {
   NetworkController,
   NetworkControllerMessenger,
   NetworkControllerOptions,
-  ProviderConfig,
 } from './NetworkController';
 
 const RPC_TARGET = 'http://foo';
+
+type WithMockedBlockTrackerOptions = {
+  nextBlockNumber?: () => string;
+};
+
+const withMockedBlockTracker = async (
+  options: WithMockedBlockTrackerOptions = {},
+) => {
+  const nextBlockNumber = options.nextBlockNumber
+    ? options.nextBlockNumber
+    : () => '0x42';
+
+  const urlRegex = /https:\/\/.*/u;
+  const anyRegex = /.*/u;
+  nock(urlRegex)
+    .post(anyRegex, {
+      jsonrpc: '2.0',
+      id: anyRegex,
+      method: "eth_blockNumber",
+      params: [],
+    })
+    .reply((_, reqBody: any) => {
+      console.log(reqBody);
+      return [
+        200,
+        { jsonrpc: '2.0', id: reqBody.id, result: nextBlockNumber() },
+      ];
+    })
+    .persist();
+
+  nock(urlRegex)
+    .post(anyRegex, {
+      jsonrpc: '2.0',
+      id: anyRegex,
+      method: "eth_getBlockByNumber",
+      params: ["0x42", false],
+    })
+    .reply((_, reqBody: any) => {
+      console.log(reqBody);
+      return [
+        200,
+        { jsonrpc: '2.0', id: reqBody.id, result: {} },
+      ];
+    })
+    .persist();
+};
 
 const setupController = (
   pType: NetworkType,
@@ -28,7 +74,6 @@ const setupController = (
     messenger,
   };
   const controller = new NetworkController(networkControllerOpts);
-  controller.providerConfig = {} as ProviderConfig;
   return controller;
 };
 
@@ -45,6 +90,8 @@ describe('NetworkController', () => {
 
   afterEach(() => {
     sinon.restore();
+    nock.restore();
+    nock.cleanAll();
   });
 
   it('should set default state', () => {
@@ -70,23 +117,42 @@ describe('NetworkController', () => {
       messenger,
     };
     const controller = new NetworkController(networkControllerOpts);
-    controller.providerConfig = {} as ProviderConfig;
-    expect(controller.provider instanceof Web3ProviderEngine).toBe(true);
+    const setupInfuraProvider = jest.spyOn(NetworkController.prototype as any, 'setupInfuraProvider');
+    setupInfuraProvider.mockImplementationOnce(() => { });
+
+    controller.setProviderType(controller.state.provider.type);
+    expect(setupInfuraProvider).toHaveBeenCalled();
   });
 
   (
-    ['kovan', 'rinkeby', 'ropsten', 'mainnet', 'localhost'] as NetworkType[]
+    ['kovan', 'rinkeby', 'ropsten', 'mainnet'] as NetworkType[]
   ).forEach((n) => {
     it(`should create a provider instance for ${n} infura network`, () => {
       const networkController = setupController(n, messenger);
-      expect(networkController.provider instanceof Web3ProviderEngine).toBe(
-        true,
-      );
+
+      const setupInfuraProvider = jest.spyOn(NetworkController.prototype as any, 'setupInfuraProvider');
+      setupInfuraProvider.mockImplementationOnce(() => { });
       expect(networkController.state.isCustomNetwork).toBe(false);
+      networkController.setProviderType(n);
+      expect(setupInfuraProvider).toHaveBeenCalled();
     });
   });
 
-  it('should create a provider instance for optimism network', () => {
+  it(`should create a provider instance for localhost network`, () => {
+    const networkController = setupController('localhost', messenger);
+
+    const setupStandardProvider = jest.spyOn(
+      NetworkController.prototype as any,
+      'setupStandardProvider'
+    );
+    setupStandardProvider.mockImplementationOnce(() => { });
+
+    expect(networkController.state.isCustomNetwork).toBe(false);
+    networkController.setProviderType('localhost');
+    expect(setupStandardProvider).toHaveBeenCalled();
+  });
+
+  it.only('should create a provider instance for optimism network', () => {
     const networkControllerOpts: NetworkControllerOptions = {
       infuraProjectId: 'foo',
       state: {
@@ -100,13 +166,21 @@ describe('NetworkController', () => {
       },
       messenger,
     };
+
     const controller = new NetworkController(networkControllerOpts);
-    controller.providerConfig = {} as ProviderConfig;
-    expect(controller.provider instanceof Web3ProviderEngine).toBe(true);
+
+    const setupStandardProvider = jest.spyOn(
+      NetworkController.prototype as any,
+      'setupStandardProvider'
+    );
+    setupStandardProvider.mockImplementationOnce(() => { });
+
+    controller.setProviderType(controller.state.provider.type);
     expect(controller.state.isCustomNetwork).toBe(true);
+    expect(setupStandardProvider).toHaveBeenCalled();
   });
 
-  it('should create a provider instance for rpc network', () => {
+  it.only('should create a provider instance for rpc network', () => {
     const networkControllerOpts: NetworkControllerOptions = {
       infuraProjectId: 'foo',
       state: {
@@ -120,20 +194,33 @@ describe('NetworkController', () => {
       messenger,
     };
     const controller = new NetworkController(networkControllerOpts);
-    controller.providerConfig = {} as ProviderConfig;
-    expect(controller.provider instanceof Web3ProviderEngine).toBe(true);
+
+    const setupStandardProvider = jest.spyOn(
+      NetworkController.prototype as any,
+      'setupStandardProvider'
+    );
+    setupStandardProvider.mockImplementationOnce(() => { });
+
+    controller.setProviderType(controller.state.provider.type);
     expect(controller.state.isCustomNetwork).toBe(false);
+    expect(setupStandardProvider).toHaveBeenCalled();
   });
 
   it('should set new RPC target', () => {
-    const controller = new NetworkController({ messenger });
+    const controller = new NetworkController({
+      messenger,
+      infuraProjectId: 'potate',
+    });
     controller.setRpcTarget(RPC_TARGET, NetworksChainId.rpc);
     expect(controller.state.providerConfig.rpcTarget).toBe(RPC_TARGET);
     expect(controller.state.isCustomNetwork).toBe(false);
   });
 
   it('should set new provider type', () => {
-    const controller = new NetworkController({ messenger });
+    const controller = new NetworkController({
+      messenger,
+      infuraProjectId: 'potate',
+    });
     controller.setProviderType('localhost');
     expect(controller.state.providerConfig.type).toBe('localhost');
     expect(controller.state.isCustomNetwork).toBe(false);
@@ -180,7 +267,10 @@ describe('NetworkController', () => {
   });
 
   it('should throw when setting an unrecognized provider type', () => {
-    const controller = new NetworkController({ messenger });
+    const controller = new NetworkController({
+      messenger,
+      infuraProjectId: 'potate',
+    });
     expect(() => controller.setProviderType('junk' as NetworkType)).toThrow(
       "Unrecognized network type: 'junk'",
     );
@@ -194,8 +284,11 @@ describe('NetworkController', () => {
         network: 'loading',
       },
     });
-    controller.providerConfig = {} as ProviderConfig;
+    controller.setProviderType(controller.state.provider.type);
     controller.lookupNetwork = sinon.stub();
+    if (controller.provider === undefined) {
+      throw new Error('provider is undefined');
+    }
     controller.provider.emit('error', {});
     expect((controller.lookupNetwork as any).called).toBe(true);
   });
@@ -218,7 +311,7 @@ describe('NetworkController', () => {
       };
       messenger.subscribe(event, handleProviderConfigChange);
 
-      controller.providerConfig = {} as ProviderConfig;
+      controller.setProviderType(controller.state.provider.type);
     });
   });
 });
