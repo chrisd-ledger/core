@@ -180,9 +180,6 @@ export class NetworkController extends BaseControllerV2<
     this.update((state) => {
       state.isCustomNetwork = this.getIsCustomNetwork(chainId);
     });
-    console.log("initialize provider:");
-    console.log(type);
-    console.log(chainId);
     switch (type) {
       case 'kovan':
       case MAINNET:
@@ -305,7 +302,6 @@ export class NetworkController extends BaseControllerV2<
     const { type, rpcTarget, chainId, ticker, nickname } =
       this.state.providerConfig;
     this.initializeProvider(type, rpcTarget, chainId);
-    this.registerProvider();
     this.lookupNetwork();
   }
 

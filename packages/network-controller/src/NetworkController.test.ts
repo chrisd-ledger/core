@@ -32,7 +32,6 @@ const withMockedBlockTracker = async (
       params: [],
     })
     .reply((_, reqBody: any) => {
-      console.log(reqBody);
       return [
         200,
         { jsonrpc: '2.0', id: reqBody.id, result: nextBlockNumber() },
@@ -48,7 +47,6 @@ const withMockedBlockTracker = async (
       params: ["0x42", false],
     })
     .reply((_, reqBody: any) => {
-      console.log(reqBody);
       return [
         200,
         { jsonrpc: '2.0', id: reqBody.id, result: {} },
@@ -120,7 +118,7 @@ describe('NetworkController', () => {
     const setupInfuraProvider = jest.spyOn(NetworkController.prototype as any, 'setupInfuraProvider');
     setupInfuraProvider.mockImplementationOnce(() => { });
 
-    controller.setProviderType(controller.state.provider.type);
+    controller.setProviderType(controller.state.providerConfig.type);
     expect(setupInfuraProvider).toHaveBeenCalled();
   });
 
@@ -152,7 +150,7 @@ describe('NetworkController', () => {
     expect(setupStandardProvider).toHaveBeenCalled();
   });
 
-  it.only('should create a provider instance for optimism network', () => {
+  it('should create a provider instance for optimism network', () => {
     const networkControllerOpts: NetworkControllerOptions = {
       infuraProjectId: 'foo',
       state: {
@@ -175,12 +173,12 @@ describe('NetworkController', () => {
     );
     setupStandardProvider.mockImplementationOnce(() => { });
 
-    controller.setProviderType(controller.state.provider.type);
+    controller.providerConfig = controller.state.providerConfig;
     expect(controller.state.isCustomNetwork).toBe(true);
     expect(setupStandardProvider).toHaveBeenCalled();
   });
 
-  it.only('should create a provider instance for rpc network', () => {
+  it('should create a provider instance for rpc network', () => {
     const networkControllerOpts: NetworkControllerOptions = {
       infuraProjectId: 'foo',
       state: {
@@ -201,7 +199,7 @@ describe('NetworkController', () => {
     );
     setupStandardProvider.mockImplementationOnce(() => { });
 
-    controller.setProviderType(controller.state.provider.type);
+    controller.providerConfig = controller.state.providerConfig;
     expect(controller.state.isCustomNetwork).toBe(false);
     expect(setupStandardProvider).toHaveBeenCalled();
   });
@@ -211,9 +209,15 @@ describe('NetworkController', () => {
       messenger,
       infuraProjectId: 'potate',
     });
+    const setupStandardProvider = jest.spyOn(
+      NetworkController.prototype as any,
+      'setupStandardProvider'
+    );
+    setupStandardProvider.mockImplementationOnce(() => { });
     controller.setRpcTarget(RPC_TARGET, NetworksChainId.rpc);
     expect(controller.state.providerConfig.rpcTarget).toBe(RPC_TARGET);
     expect(controller.state.isCustomNetwork).toBe(false);
+    expect(setupStandardProvider).toHaveBeenCalled();
   });
 
   it('should set new provider type', () => {
@@ -221,9 +225,15 @@ describe('NetworkController', () => {
       messenger,
       infuraProjectId: 'potate',
     });
+    const setupStandardProvider = jest.spyOn(
+      NetworkController.prototype as any,
+      'setupStandardProvider'
+    );
+    setupStandardProvider.mockImplementationOnce(() => { });
     controller.setProviderType('localhost');
     expect(controller.state.providerConfig.type).toBe('localhost');
     expect(controller.state.isCustomNetwork).toBe(false);
+    expect(setupStandardProvider).toHaveBeenCalled();
   });
 
   it('should set new testnet provider type', () => {
@@ -231,12 +241,18 @@ describe('NetworkController', () => {
       messenger,
       infuraProjectId: '123',
     });
+    const setupInfuraProvider = jest.spyOn(
+      NetworkController.prototype as any,
+      'setupInfuraProvider'
+    );
+    setupInfuraProvider.mockImplementationOnce(() => { });
     controller.setProviderType('goerli' as NetworkType);
     expect(controller.state.providerConfig.type).toBe('goerli');
     expect(controller.state.providerConfig.ticker).toBe('GoerliETH');
     expect(controller.state.isCustomNetwork).toBe(false);
     expect(controller.state.providerConfig.rpcTarget).toBeUndefined();
     expect(controller.state.providerConfig.nickname).toBeUndefined();
+    expect(setupInfuraProvider).toHaveBeenCalled();
   });
 
   it('should set mainnet provider type', () => {
@@ -244,12 +260,18 @@ describe('NetworkController', () => {
       messenger,
       infuraProjectId: '123',
     });
+    const setupInfuraProvider = jest.spyOn(
+      NetworkController.prototype as any,
+      'setupInfuraProvider'
+    );
+    setupInfuraProvider.mockImplementationOnce(() => { });
     controller.setProviderType('mainnet' as NetworkType);
     expect(controller.state.providerConfig.type).toBe('mainnet');
     expect(controller.state.providerConfig.ticker).toBe('ETH');
     expect(controller.state.isCustomNetwork).toBe(false);
     expect(controller.state.providerConfig.rpcTarget).toBeUndefined();
     expect(controller.state.providerConfig.nickname).toBeUndefined();
+    expect(setupInfuraProvider).toHaveBeenCalled();
   });
 
   it('should set rpcTarget and nickname props to undefined when set a provider type', () => {
@@ -257,6 +279,16 @@ describe('NetworkController', () => {
       messenger,
       infuraProjectId: '123',
     });
+    const setupInfuraProvider = jest.spyOn(
+      NetworkController.prototype as any,
+      'setupInfuraProvider'
+    );
+    setupInfuraProvider.mockImplementationOnce(() => { });
+    const setupStandardProvider = jest.spyOn(
+      NetworkController.prototype as any,
+      'setupStandardProvider'
+    );
+    setupStandardProvider.mockImplementationOnce(() => { });
     controller.setRpcTarget(RPC_TARGET, NetworksChainId.rpc);
     controller.setProviderType('mainnet' as NetworkType);
     expect(controller.state.providerConfig.type).toBe('mainnet');
@@ -264,6 +296,8 @@ describe('NetworkController', () => {
     expect(controller.state.isCustomNetwork).toBe(false);
     expect(controller.state.providerConfig.rpcTarget).toBeUndefined();
     expect(controller.state.providerConfig.nickname).toBeUndefined();
+    expect(setupStandardProvider).toHaveBeenCalled();
+    expect(setupInfuraProvider).toHaveBeenCalled();
   });
 
   it('should throw when setting an unrecognized provider type', () => {
@@ -279,12 +313,12 @@ describe('NetworkController', () => {
   it('should verify the network on an error', async () => {
     const controller = new NetworkController({
       messenger,
-      infuraProjectId: '123',
+      infuraProjectId: '341eacb578dd44a1a049cbc5f6fd4035',
       state: {
         network: 'loading',
       },
     });
-    controller.setProviderType(controller.state.provider.type);
+    controller.setProviderType(controller.state.providerConfig.type);
     controller.lookupNetwork = sinon.stub();
     if (controller.provider === undefined) {
       throw new Error('provider is undefined');
@@ -302,7 +336,7 @@ describe('NetworkController', () => {
     };
     const event = 'NetworkController:providerConfigChange';
     const controller = new NetworkController(testConfig);
-
+  
     await new Promise((resolve) => {
       const handleProviderConfigChange = () => {
         expect(controller.state.network !== 'loading').toBe(true);
@@ -311,7 +345,7 @@ describe('NetworkController', () => {
       };
       messenger.subscribe(event, handleProviderConfigChange);
 
-      controller.setProviderType(controller.state.provider.type);
+      controller.setProviderType(controller.state.providerConfig.type);
     });
   });
 });
