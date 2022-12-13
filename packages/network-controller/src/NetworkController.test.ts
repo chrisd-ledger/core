@@ -1,7 +1,6 @@
 import * as sinon from 'sinon';
 import { ControllerMessenger } from '@metamask/base-controller';
 import { NetworkType, NetworksChainId } from '@metamask/controller-utils';
-import nock from 'nock';
 import {
   NetworkController,
   NetworkControllerMessenger,
@@ -61,8 +60,6 @@ describe('NetworkController', () => {
 
   afterEach(() => {
     sinon.restore();
-    nock.restore();
-    nock.cleanAll();
   });
 
   it('should set default state', () => {
