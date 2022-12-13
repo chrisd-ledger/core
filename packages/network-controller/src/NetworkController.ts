@@ -175,11 +175,12 @@ export class NetworkController extends BaseControllerV2<
   private initializeProvider(
     type: NetworkType,
     rpcTarget?: string,
-    chainId?: string
+    chainId?: string,
   ) {
     this.update((state) => {
       state.isCustomNetwork = this.getIsCustomNetwork(chainId);
     });
+
     switch (type) {
       case 'kovan':
       case MAINNET:
@@ -299,8 +300,7 @@ export class NetworkController extends BaseControllerV2<
    * @param providerConfig - The web3-provider-engine configuration.
    */
   set providerConfig(providerConfig: ProviderConfig) {
-    const { type, rpcTarget, chainId, ticker, nickname } =
-      this.state.providerConfig;
+    const { type, rpcTarget, chainId } = this.state.providerConfig;
     this.initializeProvider(type, rpcTarget, chainId);
     this.lookupNetwork();
   }
@@ -352,7 +352,7 @@ export class NetworkController extends BaseControllerV2<
     // If testnet the ticker symbol should use a testnet prefix
     const ticker =
       type in TESTNET_NETWORK_TYPE_TO_TICKER_SYMBOL &&
-        TESTNET_NETWORK_TYPE_TO_TICKER_SYMBOL[type].length > 0
+      TESTNET_NETWORK_TYPE_TO_TICKER_SYMBOL[type].length > 0
         ? TESTNET_NETWORK_TYPE_TO_TICKER_SYMBOL[type]
         : 'ETH';
 

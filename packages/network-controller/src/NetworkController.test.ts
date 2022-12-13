@@ -1,7 +1,6 @@
 import * as sinon from 'sinon';
 import { ControllerMessenger } from '@metamask/base-controller';
 import { NetworkType, NetworksChainId } from '@metamask/controller-utils';
-import SafeEventEmitter from '@metamask/safe-event-emitter';
 import nock from 'nock';
 import {
   NetworkController,
@@ -11,48 +10,22 @@ import {
 
 const RPC_TARGET = 'http://foo';
 
-type WithMockedBlockTrackerOptions = {
-  nextBlockNumber?: () => string;
+const mockSetupInfuraProvider = () => {
+  const setupInfuraProvider = jest.spyOn(
+    NetworkController.prototype as any,
+    'setupInfuraProvider',
+  );
+  setupInfuraProvider.mockImplementationOnce(() => undefined);
+  return setupInfuraProvider;
 };
 
-const withMockedBlockTracker = async (
-  options: WithMockedBlockTrackerOptions = {},
-) => {
-  const nextBlockNumber = options.nextBlockNumber
-    ? options.nextBlockNumber
-    : () => '0x42';
-
-  const urlRegex = /https:\/\/.*/u;
-  const anyRegex = /.*/u;
-  nock(urlRegex)
-    .post(anyRegex, {
-      jsonrpc: '2.0',
-      id: anyRegex,
-      method: "eth_blockNumber",
-      params: [],
-    })
-    .reply((_, reqBody: any) => {
-      return [
-        200,
-        { jsonrpc: '2.0', id: reqBody.id, result: nextBlockNumber() },
-      ];
-    })
-    .persist();
-
-  nock(urlRegex)
-    .post(anyRegex, {
-      jsonrpc: '2.0',
-      id: anyRegex,
-      method: "eth_getBlockByNumber",
-      params: ["0x42", false],
-    })
-    .reply((_, reqBody: any) => {
-      return [
-        200,
-        { jsonrpc: '2.0', id: reqBody.id, result: {} },
-      ];
-    })
-    .persist();
+const mockSetupStandardProvider = () => {
+  const setupStandardProvider = jest.spyOn(
+    NetworkController.prototype as any,
+    'setupStandardProvider',
+  );
+  setupStandardProvider.mockImplementationOnce(() => undefined);
+  return setupStandardProvider;
 };
 
 const setupController = (
@@ -115,21 +88,16 @@ describe('NetworkController', () => {
       messenger,
     };
     const controller = new NetworkController(networkControllerOpts);
-    const setupInfuraProvider = jest.spyOn(NetworkController.prototype as any, 'setupInfuraProvider');
-    setupInfuraProvider.mockImplementationOnce(() => { });
+    const setupInfuraProvider = mockSetupInfuraProvider();
 
     controller.setProviderType(controller.state.providerConfig.type);
     expect(setupInfuraProvider).toHaveBeenCalled();
   });
 
-  (
-    ['kovan', 'rinkeby', 'ropsten', 'mainnet'] as NetworkType[]
-  ).forEach((n) => {
+  (['kovan', 'rinkeby', 'ropsten', 'mainnet'] as NetworkType[]).forEach((n) => {
     it(`should create a provider instance for ${n} infura network`, () => {
       const networkController = setupController(n, messenger);
-
-      const setupInfuraProvider = jest.spyOn(NetworkController.prototype as any, 'setupInfuraProvider');
-      setupInfuraProvider.mockImplementationOnce(() => { });
+      const setupInfuraProvider = mockSetupInfuraProvider();
       expect(networkController.state.isCustomNetwork).toBe(false);
       networkController.setProviderType(n);
       expect(setupInfuraProvider).toHaveBeenCalled();
@@ -138,12 +106,7 @@ describe('NetworkController', () => {
 
   it(`should create a provider instance for localhost network`, () => {
     const networkController = setupController('localhost', messenger);
-
-    const setupStandardProvider = jest.spyOn(
-      NetworkController.prototype as any,
-      'setupStandardProvider'
-    );
-    setupStandardProvider.mockImplementationOnce(() => { });
+    const setupStandardProvider = mockSetupStandardProvider();
 
     expect(networkController.state.isCustomNetwork).toBe(false);
     networkController.setProviderType('localhost');
@@ -166,13 +129,7 @@ describe('NetworkController', () => {
     };
 
     const controller = new NetworkController(networkControllerOpts);
-
-    const setupStandardProvider = jest.spyOn(
-      NetworkController.prototype as any,
-      'setupStandardProvider'
-    );
-    setupStandardProvider.mockImplementationOnce(() => { });
-
+    const setupStandardProvider = mockSetupStandardProvider();
     controller.providerConfig = controller.state.providerConfig;
     expect(controller.state.isCustomNetwork).toBe(true);
     expect(setupStandardProvider).toHaveBeenCalled();
@@ -192,12 +149,7 @@ describe('NetworkController', () => {
       messenger,
     };
     const controller = new NetworkController(networkControllerOpts);
-
-    const setupStandardProvider = jest.spyOn(
-      NetworkController.prototype as any,
-      'setupStandardProvider'
-    );
-    setupStandardProvider.mockImplementationOnce(() => { });
+    const setupStandardProvider = mockSetupStandardProvider();
 
     controller.providerConfig = controller.state.providerConfig;
     expect(controller.state.isCustomNetwork).toBe(false);
@@ -209,11 +161,7 @@ describe('NetworkController', () => {
       messenger,
       infuraProjectId: 'potate',
     });
-    const setupStandardProvider = jest.spyOn(
-      NetworkController.prototype as any,
-      'setupStandardProvider'
-    );
-    setupStandardProvider.mockImplementationOnce(() => { });
+    const setupStandardProvider = mockSetupStandardProvider();
     controller.setRpcTarget(RPC_TARGET, NetworksChainId.rpc);
     expect(controller.state.providerConfig.rpcTarget).toBe(RPC_TARGET);
     expect(controller.state.isCustomNetwork).toBe(false);
@@ -225,11 +173,7 @@ describe('NetworkController', () => {
       messenger,
       infuraProjectId: 'potate',
     });
-    const setupStandardProvider = jest.spyOn(
-      NetworkController.prototype as any,
-      'setupStandardProvider'
-    );
-    setupStandardProvider.mockImplementationOnce(() => { });
+    const setupStandardProvider = mockSetupStandardProvider();
     controller.setProviderType('localhost');
     expect(controller.state.providerConfig.type).toBe('localhost');
     expect(controller.state.isCustomNetwork).toBe(false);
@@ -241,11 +185,7 @@ describe('NetworkController', () => {
       messenger,
       infuraProjectId: '123',
     });
-    const setupInfuraProvider = jest.spyOn(
-      NetworkController.prototype as any,
-      'setupInfuraProvider'
-    );
-    setupInfuraProvider.mockImplementationOnce(() => { });
+    const setupInfuraProvider = mockSetupInfuraProvider();
     controller.setProviderType('goerli' as NetworkType);
     expect(controller.state.providerConfig.type).toBe('goerli');
     expect(controller.state.providerConfig.ticker).toBe('GoerliETH');
@@ -260,11 +200,7 @@ describe('NetworkController', () => {
       messenger,
       infuraProjectId: '123',
     });
-    const setupInfuraProvider = jest.spyOn(
-      NetworkController.prototype as any,
-      'setupInfuraProvider'
-    );
-    setupInfuraProvider.mockImplementationOnce(() => { });
+    const setupInfuraProvider = mockSetupInfuraProvider();
     controller.setProviderType('mainnet' as NetworkType);
     expect(controller.state.providerConfig.type).toBe('mainnet');
     expect(controller.state.providerConfig.ticker).toBe('ETH');
@@ -279,16 +215,8 @@ describe('NetworkController', () => {
       messenger,
       infuraProjectId: '123',
     });
-    const setupInfuraProvider = jest.spyOn(
-      NetworkController.prototype as any,
-      'setupInfuraProvider'
-    );
-    setupInfuraProvider.mockImplementationOnce(() => { });
-    const setupStandardProvider = jest.spyOn(
-      NetworkController.prototype as any,
-      'setupStandardProvider'
-    );
-    setupStandardProvider.mockImplementationOnce(() => { });
+    const setupInfuraProvider = mockSetupInfuraProvider();
+    const setupStandardProvider = mockSetupStandardProvider();
     controller.setRpcTarget(RPC_TARGET, NetworksChainId.rpc);
     controller.setProviderType('mainnet' as NetworkType);
     expect(controller.state.providerConfig.type).toBe('mainnet');
@@ -336,7 +264,7 @@ describe('NetworkController', () => {
     };
     const event = 'NetworkController:providerConfigChange';
     const controller = new NetworkController(testConfig);
-  
+
     await new Promise((resolve) => {
       const handleProviderConfigChange = () => {
         expect(controller.state.network !== 'loading').toBe(true);
