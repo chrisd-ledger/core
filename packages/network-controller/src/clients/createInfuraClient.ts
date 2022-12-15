@@ -45,7 +45,7 @@ export default function createInfuraClient(
   const infuraProvider = providerFromMiddleware(infuraMiddleware);
   // there is a type mismatch for Provider & SafeEventEmitter.
   const blockTracker = new PollingBlockTracker({
-    provider: infuraProvider as any,
+    provider: infuraProvider,
   });
 
   const networkMiddleware = mergeMiddleware([

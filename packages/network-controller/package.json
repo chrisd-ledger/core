@@ -34,7 +34,7 @@
     "@metamask/eth-json-rpc-infura": "^7.0.0",
     "async-mutex": "^0.2.6",
     "babel-runtime": "^6.26.0",
-    "eth-block-tracker": "^6.0.0",
+    "eth-block-tracker": "^6.1.0",
     "eth-json-rpc-infura": "^5.1.0",
     "eth-json-rpc-middleware": "^9.0.1",
     "eth-query": "^2.1.2",
