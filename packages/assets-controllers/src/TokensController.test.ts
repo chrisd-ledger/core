@@ -72,7 +72,7 @@ describe('TokensController', () => {
 
     instEthProvStub = sinon
       .stub(tokensController, '_instantiateNewEthersProvider')
-      .callsFake(() => null);
+      .callsFake(() => undefined);
   });
 
   afterEach(() => {
