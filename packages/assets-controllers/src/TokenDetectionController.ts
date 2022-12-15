@@ -226,14 +226,6 @@ export class TokenDetectionController extends BaseController<
       !isDetectionEnabledForNetwork ||
       !isDetectionEnabledFromPreferences
     ) {
-      console.log('early returned');
-      console.log('disabled', disabled);
-      console.log('isDetectionEnabledForNetwork', isDetectionEnabledForNetwork);
-      console.log(
-        'isDetectionEnabledFromPreferences',
-        isDetectionEnabledFromPreferences,
-      );
-
       return;
     }
     const { tokens } = this.getTokensState();
