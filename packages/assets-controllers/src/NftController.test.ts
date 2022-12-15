@@ -3,8 +3,8 @@ import nock from 'nock';
 import HttpProvider from 'ethjs-provider-http';
 import { PreferencesController } from '@metamask/preferences-controller';
 import {
-  NetworkController,
   NetworkControllerMessenger,
+  ProviderConfig,
 } from '@metamask/network-controller';
 import {
   OPENSEA_PROXY_URL,
@@ -12,7 +12,6 @@ import {
   ERC1155,
   OPENSEA_API_URL,
   ERC721,
-  NetworksChainId,
 } from '@metamask/controller-utils';
 import { ControllerMessenger } from '@metamask/base-controller';
 import { Network } from '@ethersproject/providers';
@@ -80,34 +79,25 @@ function setupController({
       allowedActions: [],
     });
   const preferences = new PreferencesController();
-  const network = new NetworkController({
-    messenger,
-    infuraProjectId: 'potato',
-  });
 
-  const setupInfuraProvider = jest.spyOn(
-    NetworkController.prototype as any,
-    'setupInfuraProvider',
-  );
-  setupInfuraProvider.mockImplementationOnce(() => undefined);
-
-  const setupStandardProvider = jest.spyOn(
-    NetworkController.prototype as any,
-    'setupStandardProvider',
-  );
-  setupStandardProvider.mockImplementationOnce(() => undefined);
+  const onNetworkStateChangeCallbacks: any[] = [];
+  const changeNetwork = (providerConfig: ProviderConfig) => {
+    onNetworkStateChangeCallbacks.forEach(
+      (callback) => callback({ providerConfig }), // eslint-disable-line node/no-callback-literal
+    );
+  };
 
   const assetsContract = new AssetsContractController({
     onPreferencesStateChange: (listener) => preferences.subscribe(listener),
     onNetworkStateChange: (listener) =>
-      messenger.subscribe('NetworkController:stateChange', listener),
+      onNetworkStateChangeCallbacks.push(listener),
   });
   const onNftAddedSpy = includeOnNftAdded ? jest.fn() : undefined;
 
   const nftController = new NftController({
     onPreferencesStateChange: (listener) => preferences.subscribe(listener),
     onNetworkStateChange: (listener) =>
-      messenger.subscribe('NetworkController:stateChange', listener),
+      onNetworkStateChangeCallbacks.push(listener),
     getERC721AssetName: assetsContract.getERC721AssetName.bind(assetsContract),
     getERC721AssetSymbol:
       assetsContract.getERC721AssetSymbol.bind(assetsContract),
@@ -127,10 +117,10 @@ function setupController({
   return {
     assetsContract,
     nftController,
-    network,
     onNftAddedSpy,
     preferences,
     messenger,
+    changeNetwork,
   };
 }
 
@@ -818,29 +808,26 @@ describe('NftController', () => {
     });
 
     it('should add NFT by provider type', async () => {
-      const { nftController, network, messenger } = setupController();
-      const firstNetworkType = 'rinkeby';
-      const secondNetworkType = 'ropsten';
+      const { nftController, changeNetwork } = setupController();
+      const firstNetwork = { chainId: '4', type: 'rinkeby' } as ProviderConfig;
+      const secondNetwork = { chainId: '3', type: 'ropsten' } as ProviderConfig;
+
       const { selectedAddress } = nftController.config;
       sinon
         .stub(nftController, 'getNftInformation' as any)
         .returns({ name: 'name', image: 'url', description: 'description' });
 
-      network.setProviderType(firstNetworkType);
+      changeNetwork(firstNetwork);
       await nftController.addNft('0x01', '1234');
-      network.setProviderType(secondNetworkType);
-      network.setProviderType(firstNetworkType);
+      changeNetwork(secondNetwork);
+      changeNetwork(firstNetwork);
 
       expect(
-        nftController.state.allNfts[selectedAddress]?.[
-          NetworksChainId[secondNetworkType]
-        ],
+        nftController.state.allNfts[selectedAddress]?.[secondNetwork.chainId],
       ).toBeUndefined();
 
       expect(
-        nftController.state.allNfts[selectedAddress][
-          NetworksChainId[firstNetworkType]
-        ][0],
+        nftController.state.allNfts[selectedAddress][firstNetwork.chainId][0],
       ).toStrictEqual({
         address: '0x01',
         description: 'description',
@@ -850,8 +837,6 @@ describe('NftController', () => {
         favorite: false,
         isCurrentlyOwned: true,
       });
-
-      messenger.clearEventSubscriptions('NetworkController:stateChange');
     });
 
     it('should not add NFTs with no contract information when auto detecting', async () => {
@@ -1372,32 +1357,30 @@ describe('NftController', () => {
     });
 
     it('should remove NFT by provider type', async () => {
-      const { nftController, network, messenger } = setupController();
+      const { nftController, changeNetwork, messenger } = setupController();
       const { selectedAddress } = nftController.config;
 
       sinon
         .stub(nftController, 'getNftInformation' as any)
         .returns({ name: 'name', image: 'url', description: 'description' });
-      const firstNetworkType = 'rinkeby';
-      const secondNetworkType = 'ropsten';
-      network.setProviderType(firstNetworkType);
+
+      const firstNetwork = { chainId: '4', type: 'rinkeby' } as ProviderConfig;
+      const secondNetwork = { chainId: '3', type: 'ropsten' } as ProviderConfig;
+
+      changeNetwork(firstNetwork);
       await nftController.addNft('0x02', '4321');
-      network.setProviderType(secondNetworkType);
+      changeNetwork(secondNetwork);
       await nftController.addNft('0x01', '1234');
       // nftController.removeToken('0x01');
       nftController.removeNft('0x01', '1234');
       expect(
-        nftController.state.allNfts[selectedAddress][
-          NetworksChainId[secondNetworkType]
-        ],
+        nftController.state.allNfts[selectedAddress][secondNetwork.chainId],
       ).toHaveLength(0);
 
-      network.setProviderType(firstNetworkType);
+      changeNetwork(firstNetwork);
 
       expect(
-        nftController.state.allNfts[selectedAddress][
-          NetworksChainId[firstNetworkType]
-        ][0],
+        nftController.state.allNfts[selectedAddress][firstNetwork.chainId][0],
       ).toStrictEqual({
         address: '0x02',
         description: 'description',
@@ -1972,13 +1955,19 @@ describe('NftController', () => {
       });
 
       it('should check whether the passed NFT is still owned by the the selectedAddress/chainId combination passed in the accountParams argument and update its isCurrentlyOwned property in state, when the currently configured selectedAddress/chainId are different from those passed', async () => {
-        const { nftController, network, preferences, messenger } =
+        const { nftController, preferences, messenger, changeNetwork } =
           setupController();
-        const firstNetworkType = 'rinkeby';
-        const secondNetworkType = 'ropsten';
+        const firstNetwork = {
+          chainId: '4',
+          type: 'rinkeby',
+        } as ProviderConfig;
+        const secondNetwork = {
+          chainId: '3',
+          type: 'ropsten',
+        } as ProviderConfig;
 
         preferences.update({ selectedAddress: OWNER_ADDRESS });
-        network.setProviderType(firstNetworkType);
+        changeNetwork(firstNetwork);
 
         const { selectedAddress, chainId } = nftController.config;
         const nft = {
@@ -2001,17 +1990,16 @@ describe('NftController', () => {
         sinon.stub(nftController, 'isNftOwner' as any).returns(false);
 
         preferences.update({ selectedAddress: SECOND_OWNER_ADDRESS });
-        network.setProviderType(secondNetworkType);
+        changeNetwork(secondNetwork);
 
         await nftController.checkAndUpdateSingleNftOwnershipStatus(nft, false, {
           userAddress: OWNER_ADDRESS,
-          chainId: NetworksChainId[firstNetworkType],
+          chainId: firstNetwork.chainId,
         });
 
         expect(
-          nftController.state.allNfts[OWNER_ADDRESS][
-            NetworksChainId[firstNetworkType]
-          ][0].isCurrentlyOwned,
+          nftController.state.allNfts[OWNER_ADDRESS][firstNetwork.chainId][0]
+            .isCurrentlyOwned,
         ).toBe(false);
 
         messenger.clearEventSubscriptions('NetworkController:stateChange');

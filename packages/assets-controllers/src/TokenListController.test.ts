@@ -493,6 +493,17 @@ const setupNetworkController = (
     messenger: networkMessenger,
     infuraProjectId: '123',
   });
+  const setupInfuraProvider = jest.spyOn(
+    NetworkController.prototype as any,
+    'setupInfuraProvider',
+  );
+  setupInfuraProvider.mockImplementation(() => undefined);
+
+  const setupStandardProvider = jest.spyOn(
+    NetworkController.prototype as any,
+    'setupStandardProvider',
+  );
+  setupStandardProvider.mockImplementation(() => undefined);
 
   return { network, networkMessenger };
 };
@@ -638,26 +649,24 @@ describe('TokenListController', () => {
       .persist();
 
     const controllerMessenger = getControllerMessenger();
-    const { network } = setupNetworkController(controllerMessenger);
     const messenger = getRestrictedMessenger(controllerMessenger);
+
+    let onNetworkStateChangeCallback: any;
 
     const controller = new TokenListController({
       chainId: NetworksChainId.mainnet,
-      onNetworkStateChange: (callback) =>
-        controllerMessenger.subscribe(
-          'NetworkController:providerConfigChange',
-          callback,
-        ),
+      onNetworkStateChange: (cb) => (onNetworkStateChangeCallback = cb),
       preventPollingOnNetworkRestart: false,
       interval: 100,
       messenger,
     });
+
     controller.start();
     await new Promise<void>((resolve) => setTimeout(() => resolve(), 150));
     expect(controller.state.tokenList).toStrictEqual(
       sampleSingleChainState.tokenList,
     );
-    network.setProviderType('goerli');
+    onNetworkStateChangeCallback({ chainId: '5' });
     await new Promise<void>((resolve) => setTimeout(() => resolve(), 500));
 
     expect(controller.state.tokenList).toStrictEqual({});
@@ -1076,7 +1085,7 @@ describe('TokenListController', () => {
       .persist();
 
     const controllerMessenger = getControllerMessenger();
-    const { network } = setupNetworkController(controllerMessenger);
+    setupNetworkController(controllerMessenger);
     const messenger = getRestrictedMessenger(controllerMessenger);
     const controller = new TokenListController({
       chainId: NetworksChainId.mainnet,
@@ -1097,7 +1106,10 @@ describe('TokenListController', () => {
       sampleTwoChainState.tokensChainsCache[NetworksChainId.mainnet].data,
     );
 
-    network.setProviderType('ropsten');
+    controllerMessenger.publish('NetworkController:providerConfigChange', {
+      type: 'ropsten',
+      chainId: '3',
+    });
 
     await new Promise<void>((resolve) => setTimeout(() => resolve(), 500));
 
@@ -1108,7 +1120,11 @@ describe('TokenListController', () => {
       sampleTwoChainState.tokensChainsCache[NetworksChainId.mainnet].data,
     );
 
-    network.setRpcTarget('http://localhost', '56');
+    controllerMessenger.publish('NetworkController:providerConfigChange', {
+      type: 'rpc',
+      chainId: '56',
+      rpcTarget: 'http://localhost',
+    });
 
     await new Promise<void>((resolve) => setTimeout(() => resolve(), 500));
     expect(controller.state.tokenList).toStrictEqual(
@@ -1164,7 +1180,7 @@ describe('TokenListController', () => {
       .persist();
 
     const controllerMessenger = getControllerMessenger();
-    const { network } = setupNetworkController(controllerMessenger);
+    setupNetworkController(controllerMessenger);
     const messenger = getRestrictedMessenger(controllerMessenger);
     const controller = new TokenListController({
       chainId: NetworksChainId.ropsten,
@@ -1173,7 +1189,10 @@ describe('TokenListController', () => {
       interval: 100,
     });
     await controller.start();
-    network.setProviderType('mainnet');
+    controllerMessenger.publish('NetworkController:providerConfigChange', {
+      type: 'mainnet',
+      chainId: '1',
+    });
 
     expect(controller.state).toStrictEqual({
       tokenList: {},
@@ -1211,7 +1230,11 @@ describe('TokenListController', () => {
         resolve();
       });
 
-      network.setRpcTarget('http://localhost', '56');
+      controllerMessenger.publish('NetworkController:providerConfigChange', {
+        type: 'rpc',
+        chainId: '56',
+        rpcTarget: 'http://localhost',
+      });
     });
   });
 });
