@@ -49,7 +49,11 @@ describe('TokensController', () => {
       messenger,
       infuraProjectId: 'potato',
     });
-
+    const setupInfuraProvider = jest.spyOn(
+      NetworkController.prototype as any,
+      'setupInfuraProvider',
+    );
+    setupInfuraProvider.mockImplementation(() => undefined);
     tokensController = new TokensController({
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) =>
@@ -72,6 +76,7 @@ describe('TokensController', () => {
   });
 
   afterEach(() => {
+    sinon.restore();
     instEthProvStub.restore();
     messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
