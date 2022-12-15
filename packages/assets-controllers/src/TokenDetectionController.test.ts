@@ -2,10 +2,10 @@ import * as sinon from 'sinon';
 import nock from 'nock';
 import { BN } from 'ethereumjs-util';
 import {
-  NetworkController,
-  NetworkControllerMessenger,
+  defaultNetworkControllerState,
   NetworkControllerProviderConfigChangeEvent,
   NetworkControllerStateChangeEvent,
+  ProviderConfig,
 } from '@metamask/network-controller';
 import { NetworksChainId, MAINNET } from '@metamask/controller-utils';
 import { PreferencesController } from '@metamask/preferences-controller';
@@ -94,31 +94,6 @@ const getControllerMessenger = (): MainControllerMessenger => {
   return new ControllerMessenger();
 };
 
-const setupNetworkController = (
-  controllerMessenger: MainControllerMessenger,
-) => {
-  const networkMessenger = controllerMessenger.getRestricted({
-    name: 'NetworkController',
-    allowedEvents: [
-      'NetworkController:providerConfigChange',
-      'NetworkController:stateChange',
-    ],
-    allowedActions: [],
-  });
-
-  const network = new NetworkController({
-    messenger: networkMessenger,
-    infuraProjectId: '123',
-  });
-  const setupInfuraProvider = jest.spyOn(
-    NetworkController.prototype as any,
-    'setupInfuraProvider',
-  );
-  setupInfuraProvider.mockImplementationOnce(() => undefined);
-
-  return { network, networkMessenger };
-};
-
 const setupTokenListController = (
   controllerMessenger: MainControllerMessenger,
 ) => {
@@ -143,8 +118,6 @@ const setupTokenListController = (
 describe('TokenDetectionController', () => {
   let tokenDetection: TokenDetectionController;
   let preferences: PreferencesController;
-  let network: NetworkController;
-  let networkMessenger: NetworkControllerMessenger;
   let tokensController: TokensController;
   let tokenList: TokenListController;
   let controllerMessenger: MainControllerMessenger;
@@ -152,6 +125,10 @@ describe('TokenDetectionController', () => {
     Parameters<AssetsContractController['getBalancesInSingleCall']>,
     ReturnType<AssetsContractController['getBalancesInSingleCall']>
   >;
+  let onNetworkStateChangeCallbacks: any[] = [];
+  const changeNetwork = (providerConfig: ProviderConfig) => {
+    onNetworkStateChangeCallbacks.forEach((cb) => cb({ providerConfig })); // eslint-disable-line node/no-callback-literal
+  };
 
   beforeEach(async () => {
     nock(TOKEN_END_POINT_API)
@@ -169,13 +146,10 @@ describe('TokenDetectionController', () => {
 
     preferences = new PreferencesController({}, { useTokenDetection: true });
     controllerMessenger = getControllerMessenger();
-    const networkSetup = setupNetworkController(controllerMessenger);
-    network = networkSetup.network;
-    networkMessenger = networkSetup.networkMessenger;
     tokensController = new TokensController({
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) =>
-        networkMessenger.subscribe('NetworkController:stateChange', listener),
+        onNetworkStateChangeCallbacks.push(listener),
     });
     const tokenListSetup = setupTokenListController(controllerMessenger);
     tokenList = tokenListSetup.tokenList;
@@ -184,7 +158,7 @@ describe('TokenDetectionController', () => {
     tokenDetection = new TokenDetectionController({
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
       onNetworkStateChange: (listener) =>
-        networkMessenger.subscribe('NetworkController:stateChange', listener),
+        onNetworkStateChangeCallbacks.push(listener),
       onTokenListStateChange: (listener) =>
         tokenListSetup.tokenListMessenger.subscribe(
           `TokenListController:stateChange`,
@@ -196,7 +170,7 @@ describe('TokenDetectionController', () => {
         tokensController.addDetectedTokens.bind(tokensController),
       getTokensState: () => tokensController.state,
       getTokenListState: () => tokenList.state,
-      getNetworkState: () => network.state,
+      getNetworkState: () => defaultNetworkControllerState,
       getPreferencesState: () => preferences.state,
     });
 
@@ -206,13 +180,11 @@ describe('TokenDetectionController', () => {
   });
 
   afterEach(() => {
+    onNetworkStateChangeCallbacks = [];
     nock.cleanAll();
     sinon.restore();
     tokenDetection.stop();
     tokenList.destroy();
-    controllerMessenger.clearEventSubscriptions(
-      'NetworkController:stateChange',
-    );
   });
 
   it('should set default config', () => {
@@ -280,7 +252,7 @@ describe('TokenDetectionController', () => {
       .callsFake(() => null);
 
     preferences.update({ selectedAddress: '0x1' });
-    network.setProviderType(MAINNET);
+    changeNetwork({ chainId: NetworksChainId.mainnet, type: MAINNET });
 
     getBalancesInSingleCall.resolves({
       [sampleTokenA.address]: new BN(1),
@@ -295,7 +267,7 @@ describe('TokenDetectionController', () => {
       .callsFake(() => null);
 
     preferences.update({ selectedAddress: '0x1' });
-    network.setProviderType(MAINNET);
+    changeNetwork({ chainId: NetworksChainId.mainnet, type: MAINNET });
 
     await tokenDetection.start();
 
@@ -321,8 +293,7 @@ describe('TokenDetectionController', () => {
       .callsFake(() => null);
 
     preferences.setSelectedAddress('0x0001');
-
-    network.setProviderType('mainnet');
+    changeNetwork({ chainId: NetworksChainId.mainnet, type: MAINNET });
 
     await tokenDetection.start();
 
@@ -357,7 +328,7 @@ describe('TokenDetectionController', () => {
       .callsFake(() => null);
 
     preferences.setSelectedAddress('0x0001');
-    network.setProviderType('mainnet');
+    changeNetwork({ chainId: NetworksChainId.mainnet, type: MAINNET });
 
     await tokenDetection.start();
 
@@ -384,7 +355,7 @@ describe('TokenDetectionController', () => {
       .callsFake(() => null);
 
     preferences.update({ selectedAddress: '0x1' });
-    network.setProviderType(MAINNET);
+    changeNetwork({ chainId: NetworksChainId.mainnet, type: MAINNET });
 
     await tokenDetection.start();
 
@@ -415,7 +386,7 @@ describe('TokenDetectionController', () => {
       .callsFake(() => null);
 
     preferences.setSelectedAddress('0x0001');
-    network.setProviderType(MAINNET);
+    changeNetwork({ chainId: NetworksChainId.mainnet, type: MAINNET });
 
     getBalancesInSingleCall.resolves({
       [sampleTokenA.address]: new BN(1),
@@ -453,7 +424,7 @@ describe('TokenDetectionController', () => {
         addDetectedTokens: stub,
         getTokensState: () => tokensController.state,
         getTokenListState: () => tokenList.state,
-        getNetworkState: () => network.state,
+        getNetworkState: () => defaultNetworkControllerState,
         getPreferencesState: () => preferences.state,
       },
       {
@@ -495,7 +466,7 @@ describe('TokenDetectionController', () => {
         addDetectedTokens: stub,
         getTokensState: stub,
         getTokenListState: stub,
-        getNetworkState: () => network.state,
+        getNetworkState: () => defaultNetworkControllerState,
         getPreferencesState: () => preferences.state,
       },
       {
@@ -527,7 +498,7 @@ describe('TokenDetectionController', () => {
         addDetectedTokens: stub,
         getTokensState: () => tokensController.state,
         getTokenListState: () => tokenList.state,
-        getNetworkState: () => network.state,
+        getNetworkState: () => defaultNetworkControllerState,
         getPreferencesState: () => preferences.state,
       },
       {
@@ -550,20 +521,18 @@ describe('TokenDetectionController', () => {
   it('should call getBalancesInSingleCall if onNetworkStateChange is called with a chainId that supports token detection and is changed', async () => {
     const stub = sinon.stub();
     const getBalancesInSingleCallMock = sinon.stub();
-    let networkStateChangeListener: (state: any) => void;
-    const onNetworkStateChange = sinon.stub().callsFake((listener) => {
-      networkStateChangeListener = listener;
-    });
+
     tokenDetection = new TokenDetectionController(
       {
-        onNetworkStateChange,
+        onNetworkStateChange: (listener) =>
+          onNetworkStateChangeCallbacks.push(listener),
         onTokenListStateChange: stub,
         onPreferencesStateChange: stub,
         getBalancesInSingleCall: getBalancesInSingleCallMock,
         addDetectedTokens: stub,
         getTokensState: () => tokensController.state,
         getTokenListState: () => tokenList.state,
-        getNetworkState: () => network.state,
+        getNetworkState: () => defaultNetworkControllerState,
         getPreferencesState: () => preferences.state,
       },
       {
@@ -574,12 +543,10 @@ describe('TokenDetectionController', () => {
         selectedAddress: '0x1',
       },
     );
-
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    await networkStateChangeListener!({
-      providerConfig: { chainId: NetworksChainId.mainnet },
-    });
-
+    tokenDetection.start();
+    changeNetwork({
+      chainId: SupportedTokenDetectionNetworks.polygon,
+    } as ProviderConfig);
     expect(getBalancesInSingleCallMock.called).toBe(true);
   });
 });
