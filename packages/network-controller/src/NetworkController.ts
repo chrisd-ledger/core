@@ -80,11 +80,6 @@ export type NetworkControllerProviderConfigChangeEvent = {
   payload: [ProviderConfig];
 };
 
-export type NetworkControllerProviderChangeEvent = {
-  type: `NetworkController:providerChange`;
-  payload: [SafeEventEmitterProvider];
-};
-
 export type NetworkControllerGetProviderConfigAction = {
   type: `NetworkController:getProviderConfig`;
   handler: () => ProviderConfig;
@@ -99,8 +94,7 @@ export type NetworkControllerMessenger = RestrictedControllerMessenger<
   typeof name,
   NetworkControllerGetProviderConfigAction | NetworkControllerGetEthQueryAction,
   | NetworkControllerStateChangeEvent
-  | NetworkControllerProviderConfigChangeEvent
-  | NetworkControllerProviderChangeEvent,
+  | NetworkControllerProviderConfigChangeEvent,
   string,
   string
 >;
@@ -267,12 +261,6 @@ export class NetworkController extends BaseControllerV2<
 
     this.provider = provider;
     this.blockTracker = blockTracker;
-
-    this.messagingSystem.publish(
-      `NetworkController:providerChange`,
-      this.provider,
-    );
-
     this.registerProvider();
   }
 
