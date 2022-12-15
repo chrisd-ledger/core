@@ -214,6 +214,7 @@ describe('TokenRatesController', () => {
 
   it('should update all rates', async () => {
     new NetworkController({ messenger });
+
     const preferences = new PreferencesController();
     const tokensController = new TokensController({
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),

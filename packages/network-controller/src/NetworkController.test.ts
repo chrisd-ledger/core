@@ -101,7 +101,7 @@ describe('NetworkController', () => {
     });
   });
 
-  it(`should create a provider instance for localhost network`, () => {
+  it(`should create a provider instance for localhost network`, async () => {
     const networkController = setupController('localhost', messenger);
     const setupStandardProvider = mockSetupStandardProvider();
 

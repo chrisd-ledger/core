@@ -110,6 +110,11 @@ const setupNetworkController = (
     messenger: networkMessenger,
     infuraProjectId: '123',
   });
+  const setupInfuraProvider = jest.spyOn(
+    NetworkController.prototype as any,
+    'setupInfuraProvider',
+  );
+  setupInfuraProvider.mockImplementationOnce(() => undefined);
 
   return { network, networkMessenger };
 };

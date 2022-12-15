@@ -84,6 +84,19 @@ function setupController({
     messenger,
     infuraProjectId: 'potato',
   });
+
+  const setupInfuraProvider = jest.spyOn(
+    NetworkController.prototype as any,
+    'setupInfuraProvider',
+  );
+  setupInfuraProvider.mockImplementationOnce(() => undefined);
+
+  const setupStandardProvider = jest.spyOn(
+    NetworkController.prototype as any,
+    'setupStandardProvider',
+  );
+  setupStandardProvider.mockImplementationOnce(() => undefined);
+
   const assetsContract = new AssetsContractController({
     onPreferencesStateChange: (listener) => preferences.subscribe(listener),
     onNetworkStateChange: (listener) =>

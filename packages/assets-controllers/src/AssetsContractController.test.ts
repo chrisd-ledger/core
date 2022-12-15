@@ -36,6 +36,11 @@ const setupControllers = () => {
   const network = new NetworkController({
     messenger,
   });
+  const setupInfuraProvider = jest.spyOn(
+    NetworkController.prototype as any,
+    'setupInfuraProvider',
+  );
+  setupInfuraProvider.mockImplementationOnce(() => undefined);
   const preferences = new PreferencesController();
   const assetsContract = new AssetsContractController({
     onPreferencesStateChange: (listener) => preferences.subscribe(listener),

@@ -130,6 +130,8 @@ export class NetworkController extends BaseControllerV2<
 
   private infuraProjectId: string | undefined;
 
+  private internalProviderConfig: ProviderConfig = {} as ProviderConfig;
+
   private mutex = new Mutex();
 
   constructor({ messenger, state, infuraProjectId }: NetworkControllerOptions) {
@@ -274,9 +276,13 @@ export class NetworkController extends BaseControllerV2<
     this.registerProvider();
   }
 
-  private safelyStopProvider(provider: any) {
+  private safelyStopProvider(provider: SafeEventEmitterProvider | undefined) {
+    if (provider === undefined) {
+      return;
+    }
+
     setTimeout(() => {
-      provider?.stop();
+      provider?.removeAllListeners();
     }, 500);
   }
 
@@ -300,7 +306,11 @@ export class NetworkController extends BaseControllerV2<
    * @param providerConfig - The web3-provider-engine configuration.
    */
   set providerConfig(providerConfig: ProviderConfig) {
-    const { type, rpcTarget, chainId } = this.state.providerConfig;
+    this.internalProviderConfig = providerConfig;
+    const { type, rpcTarget, chainId } = {
+      ...this.internalProviderConfig,
+      ...this.state.providerConfig,
+    };
     this.initializeProvider(type, rpcTarget, chainId);
     this.lookupNetwork();
   }
