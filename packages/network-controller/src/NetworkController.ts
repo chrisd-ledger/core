@@ -105,7 +105,7 @@ export type NetworkControllerOptions = {
   state?: Partial<NetworkState>;
 };
 
-const defaultState: NetworkState = {
+export const defaultNetworkControllerState: NetworkState = {
   network: 'loading',
   isCustomNetwork: false,
   providerConfig: { type: MAINNET, chainId: NetworksChainId.mainnet },
@@ -150,7 +150,7 @@ export class NetworkController extends BaseControllerV2<
         },
       },
       messenger,
-      state: { ...defaultState, ...state },
+      state: { ...defaultNetworkControllerState, ...state },
     });
     this.infuraProjectId = infuraProjectId;
     this.messagingSystem.registerActionHandler(

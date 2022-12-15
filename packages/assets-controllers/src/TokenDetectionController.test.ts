@@ -249,7 +249,7 @@ describe('TokenDetectionController', () => {
   it('should detect tokens correctly on supported networks', async () => {
     sinon
       .stub(tokensController, '_instantiateNewEthersProvider')
-      .callsFake(() => null);
+      .callsFake(() => undefined);
 
     preferences.update({ selectedAddress: '0x1' });
     changeNetwork({ chainId: NetworksChainId.mainnet, type: MAINNET });
@@ -264,7 +264,7 @@ describe('TokenDetectionController', () => {
   it('should update detectedTokens when new tokens are detected', async () => {
     sinon
       .stub(tokensController, '_instantiateNewEthersProvider')
-      .callsFake(() => null);
+      .callsFake(() => undefined);
 
     preferences.update({ selectedAddress: '0x1' });
     changeNetwork({ chainId: NetworksChainId.mainnet, type: MAINNET });
@@ -290,7 +290,7 @@ describe('TokenDetectionController', () => {
   it('should not add ignoredTokens to the tokens list if detected with balance', async () => {
     sinon
       .stub(tokensController, '_instantiateNewEthersProvider')
-      .callsFake(() => null);
+      .callsFake(() => undefined);
 
     preferences.setSelectedAddress('0x0001');
     changeNetwork({ chainId: NetworksChainId.mainnet, type: MAINNET });
@@ -325,7 +325,7 @@ describe('TokenDetectionController', () => {
   it('should add a token when detected with a balance even if it is ignored on another account', async () => {
     sinon
       .stub(tokensController, '_instantiateNewEthersProvider')
-      .callsFake(() => null);
+      .callsFake(() => undefined);
 
     preferences.setSelectedAddress('0x0001');
     changeNetwork({ chainId: NetworksChainId.mainnet, type: MAINNET });
@@ -352,7 +352,7 @@ describe('TokenDetectionController', () => {
   it('should not autodetect tokens that exist in the ignoreList', async () => {
     sinon
       .stub(tokensController, '_instantiateNewEthersProvider')
-      .callsFake(() => null);
+      .callsFake(() => undefined);
 
     preferences.update({ selectedAddress: '0x1' });
     changeNetwork({ chainId: NetworksChainId.mainnet, type: MAINNET });
@@ -383,7 +383,7 @@ describe('TokenDetectionController', () => {
   it('should detect new tokens after switching between accounts', async () => {
     sinon
       .stub(tokensController, '_instantiateNewEthersProvider')
-      .callsFake(() => null);
+      .callsFake(() => undefined);
 
     preferences.setSelectedAddress('0x0001');
     changeNetwork({ chainId: NetworksChainId.mainnet, type: MAINNET });
@@ -407,7 +407,7 @@ describe('TokenDetectionController', () => {
 
     sinon
       .stub(tokensController, '_instantiateNewEthersProvider')
-      .callsFake(() => null);
+      .callsFake(() => undefined);
     const stub = sinon.stub();
     const getBalancesInSingleCallMock = sinon.stub();
     let networkStateChangeListener: (state: any) => void;
