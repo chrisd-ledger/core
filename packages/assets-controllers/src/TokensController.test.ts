@@ -2,12 +2,11 @@ import * as sinon from 'sinon';
 import nock from 'nock';
 import contractMaps from '@metamask/contract-metadata';
 import { PreferencesController } from '@metamask/preferences-controller';
-import { NetworksChainId, NetworkType } from '@metamask/controller-utils';
-import { ControllerMessenger } from '@metamask/base-controller';
+import { NetworksChainId } from '@metamask/controller-utils';
+import { NetworkState, ProviderConfig } from '@metamask/network-controller';
 import { TokensController } from './TokensController';
 import { Token } from './TokenRatesController';
 import { TOKEN_END_POINT_API } from './token-service';
-import { NetworkState, ProviderConfig } from '@metamask/network-controller';
 
 jest.mock('uuid', () => {
   return {
@@ -35,7 +34,9 @@ describe('TokensController', () => {
     preferences = new PreferencesController();
     tokensController = new TokensController({
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-      onNetworkStateChange: (listener) => onNetworkStateChangeCallback = (providerConfig: ProviderConfig) => listener({ providerConfig } as NetworkState),
+      onNetworkStateChange: (listener) =>
+        (onNetworkStateChangeCallback = (providerConfig: ProviderConfig) =>
+          listener({ providerConfig } as NetworkState)),
       config: {
         chainId: NetworksChainId.mainnet,
       },
@@ -239,7 +240,7 @@ describe('TokensController', () => {
     const stub = stubCreateEthers(tokensController, false);
     const firstNetwork = { chainId: '4', type: 'rinkeby' } as ProviderConfig;
     const secondNetwork = { chainId: '3', type: 'ropsten' } as ProviderConfig;
-    
+
     onNetworkStateChangeCallback(firstNetwork);
     await tokensController.addToken('0x01', 'bar', 2);
     onNetworkStateChangeCallback(secondNetwork);
@@ -353,7 +354,6 @@ describe('TokensController', () => {
 
     it('should remove a token from the ignoredTokens/allIgnoredTokens lists if re-added as part of a bulk addTokens add', async () => {
       const selectedAddress = '0x0001';
-      const providerConfig = { chainId: '4', type: 'rinkeby' } as ProviderConfig;
       preferences.setSelectedAddress(selectedAddress);
       onNetworkStateChangeCallback(providerConfig);
       await tokensController.addToken('0x01', 'bar', 2);
@@ -624,7 +624,7 @@ describe('TokensController', () => {
           18,
         );
 
-        onNetworkStateChangeCallback({chainId: '5' })
+        onNetworkStateChangeCallback({ chainId: '5' });
 
         await expect(addTokenPromise).rejects.toThrow(
           'TokensController Error: Switched networks while adding token',
