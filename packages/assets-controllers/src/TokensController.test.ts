@@ -2,15 +2,12 @@ import * as sinon from 'sinon';
 import nock from 'nock';
 import contractMaps from '@metamask/contract-metadata';
 import { PreferencesController } from '@metamask/preferences-controller';
-import {
-  NetworkController,
-  NetworkControllerMessenger,
-} from '@metamask/network-controller';
 import { NetworksChainId, NetworkType } from '@metamask/controller-utils';
 import { ControllerMessenger } from '@metamask/base-controller';
 import { TokensController } from './TokensController';
 import { Token } from './TokenRatesController';
 import { TOKEN_END_POINT_API } from './token-service';
+import { NetworkState, ProviderConfig } from '@metamask/network-controller';
 
 jest.mock('uuid', () => {
   return {
@@ -30,41 +27,15 @@ const stubCreateEthers = (ctrl: TokensController, res: boolean) => {
 describe('TokensController', () => {
   let tokensController: TokensController;
   let preferences: PreferencesController;
-  let network: NetworkController;
-  let messenger: NetworkControllerMessenger;
 
   let instEthProvStub: sinon.SinonStub;
+  let onNetworkStateChangeCallback: any;
 
   beforeEach(() => {
-    messenger = new ControllerMessenger().getRestricted({
-      name: 'NetworkController',
-      allowedEvents: [
-        'NetworkController:stateChange',
-        'NetworkController:providerConfigChange',
-      ],
-      allowedActions: [],
-    });
     preferences = new PreferencesController();
-    network = new NetworkController({
-      messenger,
-      infuraProjectId: 'potato',
-    });
-    const setupInfuraProvider = jest.spyOn(
-      NetworkController.prototype as any,
-      'setupInfuraProvider',
-    );
-    setupInfuraProvider.mockImplementation(() => undefined);
     tokensController = new TokensController({
       onPreferencesStateChange: (listener) => preferences.subscribe(listener),
-      onNetworkStateChange: (listener) =>
-        messenger.subscribe('NetworkController:stateChange', (state, patch) => {
-          const touchesProviderConfig = patch.find(
-            (p) => p.path[0] === 'providerConfig',
-          );
-          if (touchesProviderConfig) {
-            listener(state);
-          }
-        }),
+      onNetworkStateChange: (listener) => onNetworkStateChangeCallback = (providerConfig: ProviderConfig) => listener({ providerConfig } as NetworkState),
       config: {
         chainId: NetworksChainId.mainnet,
       },
@@ -76,9 +47,9 @@ describe('TokensController', () => {
   });
 
   afterEach(() => {
+    onNetworkStateChangeCallback = undefined;
     sinon.restore();
     instEthProvStub.restore();
-    messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
   it('should set default state', () => {
@@ -266,15 +237,14 @@ describe('TokensController', () => {
 
   it('should add token by network', async () => {
     const stub = stubCreateEthers(tokensController, false);
-
-    const firstNetworkType = 'rinkeby';
-    const secondNetworkType = 'ropsten';
-    network.setProviderType(firstNetworkType);
+    const firstNetwork = { chainId: '4', type: 'rinkeby' } as ProviderConfig;
+    const secondNetwork = { chainId: '3', type: 'ropsten' } as ProviderConfig;
+    
+    onNetworkStateChangeCallback(firstNetwork);
     await tokensController.addToken('0x01', 'bar', 2);
-    network.setProviderType(secondNetworkType);
+    onNetworkStateChangeCallback(secondNetwork);
     expect(tokensController.state.tokens).toHaveLength(0);
-
-    network.setProviderType(firstNetworkType);
+    onNetworkStateChangeCallback(firstNetwork);
 
     expect(tokensController.state.tokens[0]).toStrictEqual({
       address: '0x01',
@@ -322,16 +292,16 @@ describe('TokensController', () => {
 
   it('should remove token by provider type', async () => {
     const stub = stubCreateEthers(tokensController, false);
-    const firstNetworkType = 'rinkeby';
-    const secondNetworkType = 'ropsten';
+    const firstNetwork = { chainId: '4', type: 'rinkeby' } as ProviderConfig;
+    const secondNetwork = { chainId: '3', type: 'ropsten' } as ProviderConfig;
 
-    network.setProviderType(firstNetworkType);
+    onNetworkStateChangeCallback(firstNetwork);
     await tokensController.addToken('0x02', 'baz', 2);
-    network.setProviderType(secondNetworkType);
+    onNetworkStateChangeCallback(secondNetwork);
     await tokensController.addToken('0x01', 'bar', 2);
     tokensController.ignoreTokens(['0x01']);
     expect(tokensController.state.tokens).toHaveLength(0);
-    network.setProviderType(firstNetworkType);
+    onNetworkStateChangeCallback(firstNetwork);
 
     expect(tokensController.state.tokens[0]).toStrictEqual({
       address: '0x02',
@@ -346,23 +316,21 @@ describe('TokensController', () => {
   });
 
   it('should subscribe to new sibling preference controllers', async () => {
-    const networkType = 'rinkeby';
+    const providerConfig = { chainId: '4', type: 'rinkeby' } as ProviderConfig;
     const address = '0x123';
     preferences.update({ selectedAddress: address });
+    onNetworkStateChangeCallback(providerConfig);
     expect(preferences.state.selectedAddress).toStrictEqual(address);
-    network.setProviderType(networkType);
-    expect(network.state.providerConfig.type).toStrictEqual(networkType);
   });
 
   describe('ignoredTokens', () => {
-    const defaultSelectedNetwork: NetworkType = 'rinkeby';
+    const providerConfig = { chainId: '4', type: 'rinkeby' } as ProviderConfig;
     const defaultSelectedAddress = '0x0001';
 
     let createEthersStub: sinon.SinonStub;
     beforeEach(() => {
       preferences.setSelectedAddress(defaultSelectedAddress);
-      network.setProviderType(defaultSelectedNetwork);
-
+      onNetworkStateChangeCallback(providerConfig);
       createEthersStub = stubCreateEthers(tokensController, false);
     });
 
@@ -385,9 +353,9 @@ describe('TokensController', () => {
 
     it('should remove a token from the ignoredTokens/allIgnoredTokens lists if re-added as part of a bulk addTokens add', async () => {
       const selectedAddress = '0x0001';
-      const chain = 'rinkeby';
+      const providerConfig = { chainId: '4', type: 'rinkeby' } as ProviderConfig;
       preferences.setSelectedAddress(selectedAddress);
-      network.setProviderType(chain);
+      onNetworkStateChangeCallback(providerConfig);
       await tokensController.addToken('0x01', 'bar', 2);
       await tokensController.addToken('0xFAa', 'bar', 3);
       expect(tokensController.state.ignoredTokens).toHaveLength(0);
@@ -404,7 +372,7 @@ describe('TokensController', () => {
       expect(tokensController.state.tokens).toHaveLength(3);
       expect(tokensController.state.ignoredTokens).toHaveLength(1);
       expect(tokensController.state.allIgnoredTokens).toStrictEqual({
-        [NetworksChainId[chain]]: {
+        [providerConfig.chainId]: {
           [selectedAddress]: ['0xFAa'],
         },
       });
@@ -416,7 +384,7 @@ describe('TokensController', () => {
       tokensController.ignoreTokens(['0x01']);
       expect(tokensController.state.tokens).toHaveLength(0);
       expect(tokensController.state.allIgnoredTokens).toStrictEqual({
-        [NetworksChainId[defaultSelectedNetwork]]: {
+        [providerConfig.chainId]: {
           [defaultSelectedAddress]: ['0x01'],
         },
       });
@@ -430,11 +398,11 @@ describe('TokensController', () => {
     it('should ignore tokens by [chainID][accountAddress]', async () => {
       const selectedAddress1 = '0x0001';
       const selectedAddress2 = '0x0002';
-      const chain1 = 'rinkeby';
-      const chain2 = 'ropsten';
+      const firstNetwork = { chainId: '4', type: 'rinkeby' } as ProviderConfig;
+      const secondNetwork = { chainId: '3', type: 'ropsten' } as ProviderConfig;
 
       preferences.setSelectedAddress(selectedAddress1);
-      network.setProviderType(chain1);
+      onNetworkStateChangeCallback(firstNetwork);
 
       await tokensController.addToken('0x01', 'bar', 2);
       expect(tokensController.state.ignoredTokens).toHaveLength(0);
@@ -442,7 +410,7 @@ describe('TokensController', () => {
       expect(tokensController.state.tokens).toHaveLength(0);
 
       expect(tokensController.state.ignoredTokens).toStrictEqual(['0x01']);
-      network.setProviderType(chain2);
+      onNetworkStateChangeCallback(secondNetwork);
 
       expect(tokensController.state.ignoredTokens).toHaveLength(0);
       await tokensController.addToken('0x02', 'bazz', 3);
@@ -456,10 +424,10 @@ describe('TokensController', () => {
       expect(tokensController.state.ignoredTokens).toStrictEqual(['0x03']);
 
       expect(tokensController.state.allIgnoredTokens).toStrictEqual({
-        [NetworksChainId[chain1]]: {
+        [firstNetwork.chainId]: {
           [selectedAddress1]: ['0x01'],
         },
-        [NetworksChainId[chain2]]: {
+        [secondNetwork.chainId]: {
           [selectedAddress1]: ['0x02'],
           [selectedAddress2]: ['0x03'],
         },
@@ -656,7 +624,7 @@ describe('TokensController', () => {
           18,
         );
 
-        network.setProviderType('goerli');
+        onNetworkStateChangeCallback({chainId: '5' })
 
         await expect(addTokenPromise).rejects.toThrow(
           'TokensController Error: Switched networks while adding token',
@@ -719,9 +687,9 @@ describe('TokensController', () => {
       const DETECTED_CHAINID = '0xDetectedChainId';
 
       const CONFIGURED_ADDRESS = '0xabc';
-      const CONFIGURED_NETWORK = 'rinkeby';
+      const firstNetwork = { chainId: '4', type: 'rinkeby' } as ProviderConfig;
       preferences.update({ selectedAddress: CONFIGURED_ADDRESS });
-      network.setProviderType(CONFIGURED_NETWORK);
+      onNetworkStateChangeCallback(firstNetwork);
 
       const detectedToken: Token = {
         address: '0x01',
@@ -764,7 +732,7 @@ describe('TokensController', () => {
       });
 
       expect(tokensController.state.allTokens).toStrictEqual({
-        [NetworksChainId[CONFIGURED_NETWORK]]: {
+        [firstNetwork.chainId]: {
           [CONFIGURED_ADDRESS]: [directlyAddedToken],
         },
       });
@@ -1132,16 +1100,15 @@ describe('TokensController', () => {
   describe('onNetworkStateChange', function () {
     it('should remove a token from its state on corresponding network', async function () {
       const stub = stubCreateEthers(tokensController, false);
-
-      const firstNetworkType = 'rinkeby';
-      const secondNetworkType = 'ropsten';
-      network.setProviderType(firstNetworkType);
+      const firstNetwork = { chainId: '4', type: 'rinkeby' } as ProviderConfig;
+      const secondNetwork = { chainId: '3', type: 'ropsten' } as ProviderConfig;
+      onNetworkStateChangeCallback(firstNetwork);
 
       await tokensController.addToken('0x01', 'A', 4);
       await tokensController.addToken('0x02', 'B', 5);
       const initialTokensFirst = tokensController.state.tokens;
 
-      network.setProviderType(secondNetworkType);
+      onNetworkStateChangeCallback(secondNetwork);
 
       await tokensController.addToken('0x03', 'C', 4);
       await tokensController.addToken('0x04', 'D', 5);
@@ -1191,10 +1158,9 @@ describe('TokensController', () => {
           aggregators: [],
         },
       ]);
-
-      network.setProviderType(firstNetworkType);
+      onNetworkStateChangeCallback(firstNetwork);
       expect(initialTokensFirst).toStrictEqual(tokensController.state.tokens);
-      network.setProviderType(secondNetworkType);
+      onNetworkStateChangeCallback(secondNetwork);
       expect(initialTokensSecond).toStrictEqual(tokensController.state.tokens);
 
       stub.restore();
