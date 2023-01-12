@@ -3,6 +3,7 @@ import Subprovider from 'web3-provider-engine/subproviders/provider';
 import createInfuraProvider from 'eth-json-rpc-infura/src/createProvider';
 import createMetamaskProvider from 'web3-provider-engine/zero';
 import { Mutex } from 'async-mutex';
+import { v1 as random } from 'uuid';
 import type { Patch } from 'immer';
 import {
   BaseControllerV2,
@@ -43,6 +44,25 @@ export type NetworkDetails = {
 };
 
 /**
+ * Custom RPC network information
+ *
+ * @property rpcUrl - RPC target URL.
+ * @property chainId - Network ID as per EIP-155
+ * @property nickname - Personalized network name.
+ * @property ticker - Currency ticker.
+ * @property rpcPrefs - Personalized preferences.
+ */
+export type NetworkConfiguration = {
+  rpcUrl: string;
+  chainId?: string;
+  nickname?: string;
+  ticker?: string;
+  rpcPrefs?: {
+    blockExplorerUrl: string;
+  };
+};
+
+/**
  * @type NetworkState
  *
  * Network controller state
@@ -55,6 +75,7 @@ export type NetworkState = {
   isCustomNetwork: boolean;
   providerConfig: ProviderConfig;
   networkDetails: NetworkDetails;
+  networkConfigurations: Record<string, NetworkConfiguration>;
 };
 
 const LOCALHOST_RPC_URL = 'http://localhost:8545';
@@ -111,6 +132,7 @@ export const defaultState: NetworkState = {
   isCustomNetwork: false,
   providerConfig: { type: MAINNET, chainId: NetworksChainId.mainnet },
   networkDetails: { isEIP1559Compatible: false },
+  networkConfigurations: {},
 };
 
 /**
@@ -146,6 +168,10 @@ export class NetworkController extends BaseControllerV2<
           anonymous: false,
         },
         providerConfig: {
+          persist: true,
+          anonymous: false,
+        },
+        networkConfigurations: {
           persist: true,
           anonymous: false,
         },
@@ -429,6 +455,80 @@ export class NetworkController extends BaseControllerV2<
       });
     }
     return Promise.resolve(true);
+  }
+
+  /**
+   * Network Configuration management functions
+   */
+
+  /**
+   * Adds a network configuration if the rpcUrl is not already present on an
+   * existing network configuration. Otherwise updates the entry with the matching rpcUrl.
+   *
+   * @param config - The network configuration.
+   * @param config.rpcUrl - The network configuration RPC URL.
+   * @param config.chainId - The chain ID of the network, as per EIP-155.
+   * @param config.ticker - Currency ticker.
+   * @param config.nickname - Personalized network name.
+   * @param config.rpcPrefs - Personalized preferences.
+   * @returns uuid for the added or updated network configuration
+   */
+  addNetworkConfigurations({
+    rpcUrl,
+    chainId,
+    ticker,
+    nickname,
+    rpcPrefs,
+  }: NetworkConfiguration): string {
+    const networkConfigurations = { ...this.state.networkConfigurations };
+
+    const newNetworkConfiguration: NetworkConfiguration = {
+      rpcUrl,
+      chainId,
+      ticker,
+      nickname,
+      rpcPrefs,
+    };
+
+    // This upsert functionality is equivalent to the preveious impelementation of `addFrequentRpcList` on the PreferencesController
+    // In the long run however we may add additional fields that could mean we can't rely on any individual field - including rpcURL - to be unique
+    // in which case we will need to update this logic to guarantee uniqueness
+    for (const configUUID in networkConfigurations) {
+      if (
+        networkConfigurations[configUUID].rpcUrl.toLowerCase() ===
+        rpcUrl.toLowerCase()
+      ) {
+        // update existing config
+        networkConfigurations[configUUID] = newNetworkConfiguration;
+        this.update((state) => {
+          state.networkConfigurations = networkConfigurations;
+        });
+        return configUUID;
+      }
+    }
+
+    const uuid = random();
+    networkConfigurations[uuid] = newNetworkConfiguration;
+
+    this.update((state) => {
+      state.networkConfigurations = networkConfigurations;
+    });
+
+    return uuid;
+  }
+
+  /**
+   * Removes network configuration from state.
+   *
+   * @param uuid - Custom RPC URL.
+   */
+  removeNetworkConfigurations(uuid: string) {
+    const networkConfigurations = { ...this.state.networkConfigurations };
+    delete networkConfigurations[uuid];
+
+    this.update((state) => {
+      state.networkConfigurations = networkConfigurations;
+    });
   }
 }
 
