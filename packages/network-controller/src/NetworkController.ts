@@ -210,6 +210,7 @@ export class NetworkController extends BaseControllerV2<
   }
 
   private registerProvider() {
+    // this.provider.on('error', console.error);
     this.provider.on('error', this.verifyNetwork.bind(this));
     this.ethQuery = new EthQuery(this.provider);
   }
@@ -310,6 +311,7 @@ export class NetworkController extends BaseControllerV2<
         { method: 'net_version' },
         (error: Error, result: string) => {
           if (error) {
+            console.error(error);
             reject(error);
           } else {
             resolve(result);
@@ -373,6 +375,7 @@ export class NetworkController extends BaseControllerV2<
       state.providerConfig.rpcTarget = undefined;
       state.providerConfig.nickname = undefined;
     });
+
     this.refreshNetwork();
   }
 
