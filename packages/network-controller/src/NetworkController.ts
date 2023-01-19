@@ -490,9 +490,6 @@ export class NetworkController extends BaseControllerV2<
       rpcPrefs,
     };
 
-    // This upsert functionality is equivalent to the preveious impelementation of `addFrequentRpcList` on the PreferencesController
-    // In the long run however we may add additional fields that could mean we can't rely on any individual field - including rpcURL - to be unique
-    // in which case we will need to update this logic to guarantee uniqueness
     for (const configUUID in networkConfigurations) {
       if (
         networkConfigurations[configUUID].rpcUrl.toLowerCase() ===
