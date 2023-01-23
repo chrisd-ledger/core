@@ -8,6 +8,8 @@ export type NetworkType =
   | 'sepolia'
   | 'rpc';
 
+export type CurrentNetworkType = 'loading' | 'infura' | 'custom';
+
 export enum NetworksChainId {
   mainnet = '1',
   goerli = '5',

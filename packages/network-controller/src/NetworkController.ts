@@ -14,6 +14,7 @@ import {
   TESTNET_NETWORK_TYPE_TO_TICKER_SYMBOL,
   NetworksChainId,
   NetworkType,
+  CurrentNetworkType,
 } from '@metamask/controller-utils';
 
 /**
@@ -46,13 +47,11 @@ export type NetworkProperties = {
  * @type NetworkState
  *
  * Network controller state
- * @property network - Network ID as per net_version
- * @property isCustomNetwork - Identifies if the network is a custom network
+ * @property currentNetworkType - Identifies the type of network that is currently active (either "loading", "Infura", or "custom").
  * @property provider - RPC URL and network name provider settings
  */
 export type NetworkState = {
-  network: string;
-  isCustomNetwork: boolean;
+  currentNetworkType: CurrentNetworkType;
   providerConfig: ProviderConfig;
   properties: NetworkProperties;
 };
@@ -107,8 +106,7 @@ export type NetworkControllerOptions = {
 };
 
 export const defaultState: NetworkState = {
-  network: 'loading',
-  isCustomNetwork: false,
+  currentNetworkType: 'loading',
   providerConfig: { type: MAINNET, chainId: NetworksChainId.mainnet },
   properties: { isEIP1559Compatible: false },
 };
@@ -133,11 +131,7 @@ export class NetworkController extends BaseControllerV2<
     super({
       name,
       metadata: {
-        network: {
-          persist: true,
-          anonymous: false,
-        },
-        isCustomNetwork: {
+        currentNetworkType: {
           persist: true,
           anonymous: false,
         },
@@ -177,9 +171,10 @@ export class NetworkController extends BaseControllerV2<
     nickname?: string,
   ) {
     this.update((state) => {
-      state.isCustomNetwork = this.getIsCustomNetwork(chainId);
+      state.currentNetworkType = this.getIsCustomNetwork(chainId)
+        ? 'custom'
+        : 'infura';
     });
-
     switch (type) {
       case MAINNET:
       case 'goerli':
@@ -201,12 +196,12 @@ export class NetworkController extends BaseControllerV2<
 
   private refreshNetwork() {
     this.update((state) => {
-      state.network = 'loading';
+      state.currentNetworkType = 'loading';
       state.properties = {};
     });
     const { rpcTarget, type, chainId, ticker } = this.state.providerConfig;
     this.initializeProvider(type, rpcTarget, chainId, ticker);
-    this.lookupNetwork();
+    this.lookupNetwork(chainId);
   }
 
   private registerProvider() {
@@ -274,7 +269,8 @@ export class NetworkController extends BaseControllerV2<
   }
 
   private verifyNetwork() {
-    this.state.network === 'loading' && this.lookupNetwork();
+    this.state.currentNetworkType === 'loading' &&
+      this.lookupNetwork(this.state.providerConfig.chainId);
   }
 
   /**
@@ -297,57 +293,39 @@ export class NetworkController extends BaseControllerV2<
     if (this.provider !== undefined) {
       this.registerProvider();
     }
-    this.lookupNetwork();
+    this.lookupNetwork(chainId);
   }
 
   get providerConfig() {
     throw new Error('Property only used for setting');
   }
 
-  async #getNetworkId(): Promise<string> {
-    return await new Promise((resolve, reject) => {
-      this.ethQuery.sendAsync(
-        { method: 'net_version' },
-        (error: Error, result: string) => {
-          if (error) {
-            reject(error);
-          } else {
-            resolve(result);
-          }
-        },
-      );
-    });
-  }
-
   /**
-   * Refreshes the current network code.
+   * Refreshes the current network type.
+   *
+   * @param chainId - The chain ID as per EIP-155.
    */
-  async lookupNetwork() {
+  async lookupNetwork(chainId: string) {
     if (!this.ethQuery || !this.ethQuery.sendAsync) {
       return;
     }
     const releaseLock = await this.mutex.acquire();
 
     try {
-      try {
-        const networkId = await this.#getNetworkId();
-        if (this.state.network === networkId) {
-          return;
-        }
-
-        this.update((state) => {
-          state.network = networkId;
-        });
-      } catch (_error) {
-        this.update((state) => {
-          state.network = 'loading';
-        });
-      }
+      this.update((state) => {
+        state.currentNetworkType = this.getIsCustomNetwork(chainId)
+          ? 'custom'
+          : 'infura';
+      });
 
       this.messagingSystem.publish(
         `NetworkController:providerConfigChange`,
         this.state.providerConfig,
       );
+    } catch (_error) {
+      this.update((state) => {
+        state.currentNetworkType = 'loading';
+      });
     } finally {
       releaseLock();
     }

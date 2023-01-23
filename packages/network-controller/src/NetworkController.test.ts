@@ -75,8 +75,7 @@ describe('NetworkController', () => {
     it('initializes the state with some defaults', async () => {
       await withController(({ controller }) => {
         expect(controller.state).toStrictEqual({
-          network: 'loading',
-          isCustomNetwork: false,
+          currentNetworkType: 'loading',
           providerConfig: { type: 'mainnet' as const, chainId: '1' },
           properties: { isEIP1559Compatible: false },
         });
@@ -87,14 +86,13 @@ describe('NetworkController', () => {
       await withController(
         {
           state: {
-            isCustomNetwork: true,
+            currentNetworkType: 'custom',
             properties: { isEIP1559Compatible: true },
           },
         },
         ({ controller }) => {
           expect(controller.state).toStrictEqual({
-            network: 'loading',
-            isCustomNetwork: true,
+            currentNetworkType: 'custom',
             providerConfig: { type: 'mainnet', chainId: '1' },
             properties: { isEIP1559Compatible: true },
           });
@@ -117,11 +115,11 @@ describe('NetworkController', () => {
     describe('set', () => {
       ['1', '5', '11155111', ''].forEach((chainId) => {
         describe(`when the provider config in state contains a chain ID of "${chainId}"`, () => {
-          it('sets isCustomNetwork in state to false (ignoring the chain ID in the provided config object)', async () => {
+          it('sets currentNetworkType in state to infura (ignoring the chain ID in the provided config object)', async () => {
             await withController(
               {
                 state: {
-                  isCustomNetwork: true,
+                  currentNetworkType: 'custom',
                   providerConfig: buildProviderConfig({
                     chainId,
                   }),
@@ -140,7 +138,7 @@ describe('NetworkController', () => {
 
                 controller.providerConfig = buildProviderConfig();
 
-                expect(controller.state.isCustomNetwork).toBe(false);
+                expect(controller.state.currentNetworkType).toBe('infura');
               },
             );
           });
@@ -148,7 +146,7 @@ describe('NetworkController', () => {
       });
 
       describe('when the provider config in state contains a chain ID that is not 1, 5, 11155111, or an empty string', () => {
-        it('sets isCustomNetwork in state to true (ignoring the chain ID in the provided config object)', async () => {
+        it('sets currentNetworkType in state to custom (ignoring the chain ID in the provided config object)', async () => {
           await withController(
             {
               state: {
@@ -168,7 +166,7 @@ describe('NetworkController', () => {
 
               controller.providerConfig = buildProviderConfig();
 
-              expect(controller.state.isCustomNetwork).toBe(true);
+              expect(controller.state.currentNetworkType).toBe('custom');
             },
           );
         });
@@ -256,148 +254,6 @@ describe('NetworkController', () => {
               },
             );
           });
-
-          describe('when an "error" event occurs on the new provider', () => {
-            describe('if the network version could not be retrieved while providerConfig was being set', () => {
-              it('retrieves the network version twice more (due to the "error" event being listened to twice) and, assuming success, persists it to state', async () => {
-                const messenger = buildMessenger();
-                await withController(
-                  {
-                    messenger,
-                    state: {
-                      providerConfig: buildProviderConfig({
-                        type: networkType,
-                      }),
-                    },
-                    infuraProjectId: 'infura-project-id',
-                  },
-                  async ({ controller }) => {
-                    const fakeInfuraProvider = buildFakeInfuraProvider();
-                    createInfuraProviderMock.mockReturnValue(
-                      fakeInfuraProvider,
-                    );
-                    const fakeInfuraSubprovider = buildFakeInfuraSubprovider();
-                    SubproviderMock.mockReturnValue(fakeInfuraSubprovider);
-                    const fakeMetamaskProvider = buildFakeMetamaskProvider([
-                      {
-                        request: {
-                          method: 'net_version',
-                        },
-                        response: {
-                          error: 'oops',
-                        },
-                      },
-                      {
-                        request: {
-                          method: 'net_version',
-                        },
-                        response: {
-                          result: '1',
-                        },
-                      },
-                      {
-                        request: {
-                          method: 'net_version',
-                        },
-                        response: {
-                          result: '2',
-                        },
-                      },
-                    ]);
-                    createMetamaskProviderMock.mockReturnValue(
-                      fakeMetamaskProvider,
-                    );
-
-                    await waitForPublishedEvents(
-                      messenger,
-                      'NetworkController:providerConfigChange',
-                      {
-                        after: () => {
-                          controller.providerConfig = buildProviderConfig();
-                          assert(controller.provider);
-                        },
-                      },
-                    );
-
-                    await waitForStateChanges(messenger, {
-                      propertyPath: ['network'],
-                      count: 2,
-                      after: () => {
-                        controller.provider.emit('error', { some: 'error' });
-                      },
-                    });
-                    expect(controller.state.network).toBe('2');
-                  },
-                );
-              });
-            });
-
-            describe('if the network version could be retrieved while providerConfig was being set', () => {
-              it('does not retrieve the network version again', async () => {
-                const messenger = buildMessenger();
-                await withController(
-                  {
-                    messenger,
-                    state: {
-                      providerConfig: buildProviderConfig({
-                        type: networkType,
-                      }),
-                    },
-                    infuraProjectId: 'infura-project-id',
-                  },
-                  async ({ controller }) => {
-                    const fakeInfuraProvider = buildFakeInfuraProvider();
-                    createInfuraProviderMock.mockReturnValue(
-                      fakeInfuraProvider,
-                    );
-                    const fakeInfuraSubprovider = buildFakeInfuraSubprovider();
-                    SubproviderMock.mockReturnValue(fakeInfuraSubprovider);
-                    const fakeMetamaskProvider = buildFakeMetamaskProvider([
-                      {
-                        request: {
-                          method: 'net_version',
-                        },
-                        response: {
-                          result: '1',
-                        },
-                      },
-                      {
-                        request: {
-                          method: 'net_version',
-                        },
-                        response: {
-                          result: '2',
-                        },
-                      },
-                    ]);
-                    createMetamaskProviderMock.mockReturnValue(
-                      fakeMetamaskProvider,
-                    );
-
-                    await waitForPublishedEvents(
-                      messenger,
-                      'NetworkController:providerConfigChange',
-                      {
-                        after: () => {
-                          controller.providerConfig = buildProviderConfig();
-                          assert(controller.provider);
-                        },
-                      },
-                    );
-
-                    await waitForStateChanges(messenger, {
-                      propertyPath: ['network'],
-                      count: 0,
-                      after: () => {
-                        controller.provider.emit('error', { some: 'error' });
-                      },
-                    });
-                    expect(controller.state.network).toBe('1');
-                  },
-                );
-              });
-            });
-          });
         });
       });
 
@@ -464,134 +320,6 @@ describe('NetworkController', () => {
               expect(fakeMetamaskProviders[0].stop).toHaveBeenCalled();
             },
           );
-        });
-
-        describe('when an "error" event occurs on the new provider', () => {
-          describe('if the network version could not be retrieved while providerConfig was being set', () => {
-            it('retrieves the network version twice more (due to the "error" event being listened to twice) and, assuming success, persists it to state', async () => {
-              const messenger = buildMessenger();
-              await withController(
-                {
-                  messenger,
-                  state: {
-                    providerConfig: buildProviderConfig({
-                      type: 'localhost',
-                    }),
-                  },
-                },
-                async ({ controller }) => {
-                  const fakeMetamaskProvider = buildFakeMetamaskProvider([
-                    {
-                      request: {
-                        method: 'net_version',
-                      },
-                      response: {
-                        error: 'oops',
-                      },
-                    },
-                    {
-                      request: {
-                        method: 'net_version',
-                      },
-                      response: {
-                        result: '1',
-                      },
-                    },
-                    {
-                      request: {
-                        method: 'net_version',
-                      },
-                      response: {
-                        result: '2',
-                      },
-                    },
-                  ]);
-                  createMetamaskProviderMock.mockReturnValue(
-                    fakeMetamaskProvider,
-                  );
-
-                  await waitForPublishedEvents(
-                    messenger,
-                    'NetworkController:providerConfigChange',
-                    {
-                      after: () => {
-                        controller.providerConfig = buildProviderConfig();
-                        assert(controller.provider);
-                      },
-                    },
-                  );
-
-                  await waitForStateChanges(messenger, {
-                    propertyPath: ['network'],
-                    count: 2,
-                    after: () => {
-                      controller.provider.emit('error', { some: 'error' });
-                    },
-                  });
-                  expect(controller.state.network).toBe('2');
-                },
-              );
-            });
-          });
-
-          describe('if the network version could be retrieved while providerConfig was being set', () => {
-            it('does not retrieve the network version again', async () => {
-              const messenger = buildMessenger();
-              await withController(
-                {
-                  messenger,
-                  state: {
-                    providerConfig: buildProviderConfig({
-                      type: 'localhost',
-                    }),
-                  },
-                },
-                async ({ controller }) => {
-                  const fakeMetamaskProvider = buildFakeMetamaskProvider([
-                    {
-                      request: {
-                        method: 'net_version',
-                      },
-                      response: {
-                        result: '1',
-                      },
-                    },
-                    {
-                      request: {
-                        method: 'net_version',
-                      },
-                      response: {
-                        result: '2',
-                      },
-                    },
-                  ]);
-                  createMetamaskProviderMock.mockReturnValue(
-                    fakeMetamaskProvider,
-                  );
-
-                  await waitForPublishedEvents(
-                    messenger,
-                    'NetworkController:providerConfigChange',
-                    {
-                      after: () => {
-                        controller.providerConfig = buildProviderConfig();
-                        assert(controller.provider);
-                      },
-                    },
-                  );
-
-                  await waitForStateChanges(messenger, {
-                    propertyPath: ['network'],
-                    count: 0,
-                    after: () => {
-                      controller.provider.emit('error', { some: 'error' });
-                    },
-                  });
-                  expect(controller.state.network).toBe('1');
-                },
-              );
-            });
-          });
         });
       });
 
@@ -710,136 +438,6 @@ describe('NetworkController', () => {
               },
             );
           });
-
-          describe('when an "error" event occurs on the new provider', () => {
-            describe('if the network version could not be retrieved while providerConfig was being set', () => {
-              it('retrieves the network version twice more (due to the "error" event being listened to twice) and, assuming success, persists it to state', async () => {
-                const messenger = buildMessenger();
-                await withController(
-                  {
-                    messenger,
-                    state: {
-                      providerConfig: buildProviderConfig({
-                        type: 'rpc',
-                        rpcTarget: 'http://example.com',
-                      }),
-                    },
-                  },
-                  async ({ controller }) => {
-                    const fakeMetamaskProvider = buildFakeMetamaskProvider([
-                      {
-                        request: {
-                          method: 'net_version',
-                        },
-                        response: {
-                          error: 'oops',
-                        },
-                      },
-                      {
-                        request: {
-                          method: 'net_version',
-                        },
-                        response: {
-                          result: '1',
-                        },
-                      },
-                      {
-                        request: {
-                          method: 'net_version',
-                        },
-                        response: {
-                          result: '2',
-                        },
-                      },
-                    ]);
-                    createMetamaskProviderMock.mockReturnValue(
-                      fakeMetamaskProvider,
-                    );
-
-                    await waitForPublishedEvents(
-                      messenger,
-                      'NetworkController:providerConfigChange',
-                      {
-                        after: () => {
-                          controller.providerConfig = buildProviderConfig();
-                          assert(controller.provider);
-                        },
-                      },
-                    );
-
-                    await waitForStateChanges(messenger, {
-                      propertyPath: ['network'],
-                      count: 2,
-                      after: () => {
-                        controller.provider.emit('error', { some: 'error' });
-                      },
-                    });
-                    expect(controller.state.network).toBe('2');
-                  },
-                );
-              });
-            });
-
-            describe('if the network version could be retrieved while providerConfig was being set', () => {
-              it('does not retrieve the network version again', async () => {
-                const messenger = buildMessenger();
-                await withController(
-                  {
-                    messenger,
-                    state: {
-                      providerConfig: buildProviderConfig({
-                        type: 'rpc',
-                        rpcTarget: 'http://example.com',
-                      }),
-                    },
-                  },
-                  async ({ controller }) => {
-                    const fakeMetamaskProvider = buildFakeMetamaskProvider([
-                      {
-                        request: {
-                          method: 'net_version',
-                        },
-                        response: {
-                          result: '1',
-                        },
-                      },
-                      {
-                        request: {
-                          method: 'net_version',
-                        },
-                        response: {
-                          result: '2',
-                        },
-                      },
-                    ]);
-                    createMetamaskProviderMock.mockReturnValue(
-                      fakeMetamaskProvider,
-                    );
-
-                    await waitForPublishedEvents(
-                      messenger,
-                      'NetworkController:providerConfigChange',
-                      {
-                        after: () => {
-                          controller.providerConfig = buildProviderConfig();
-                          assert(controller.provider);
-                        },
-                      },
-                    );
-
-                    await waitForStateChanges(messenger, {
-                      propertyPath: ['network'],
-                      count: 0,
-                      after: () => {
-                        controller.provider.emit('error', { some: 'error' });
-                      },
-                    });
-                    expect(controller.state.network).toBe('1');
-                  },
-                );
-              });
-            });
-          });
         });
 
         describe('if the RPC target is not set', () => {
@@ -909,14 +507,16 @@ describe('NetworkController', () => {
 
   describe('lookupNetwork', () => {
     describe('if a provider has not been set', () => {
-      it('does not change network in state', async () => {
+      it('does not change currentProviderNetwork in state', async () => {
         const messenger = buildMessenger();
         await withController({ messenger }, async ({ controller }) => {
           const promiseForNetworkChanges = waitForStateChanges(messenger, {
-            propertyPath: ['network'],
+            propertyPath: ['currentProviderNetwork'],
           });
 
-          await controller.lookupNetwork();
+          await controller.lookupNetwork(
+            controller.state.providerConfig.chainId,
+          );
 
           await expect(promiseForNetworkChanges).toNeverResolve();
         });
@@ -930,7 +530,9 @@ describe('NetworkController', () => {
             'NetworkController:providerConfigChange',
           );
 
-          await controller.lookupNetwork();
+          await controller.lookupNetwork(
+            controller.state.providerConfig.chainId,
+          );
 
           await expect(promiseForProviderConfigChange).toNeverResolve();
         });
@@ -938,24 +540,6 @@ describe('NetworkController', () => {
     });
 
     describe('if a provider has been set, but the resulting EthQuery object does not have a sendAsync method', () => {
-      it('does not change network in state', async () => {
-        const messenger = buildMessenger();
-        await withController({ messenger }, async ({ controller }) => {
-          const fakeEthQuery = {};
-          jest.spyOn(ethQueryModule, 'default').mockReturnValue(fakeEthQuery);
-          await setFakeProvider(controller, {
-            stubLookupNetworkWhileSetting: true,
-          });
-          const promiseForNetworkChanges = waitForStateChanges(messenger, {
-            propertyPath: ['network'],
-          });
-
-          await controller.lookupNetwork();
-
-          await expect(promiseForNetworkChanges).toNeverResolve();
-        });
-      });
-
       it('does not publish NetworkController:providerConfigChange', async () => {
         const messenger = buildMessenger();
         await withController({ messenger }, async ({ controller }) => {
@@ -969,7 +553,9 @@ describe('NetworkController', () => {
             'NetworkController:providerConfigChange',
           );
 
-          await controller.lookupNetwork();
+          await controller.lookupNetwork(
+            controller.state.providerConfig.chainId,
+          );
 
           await expect(promiseForProviderConfigChange).toNeverResolve();
         });
@@ -977,161 +563,7 @@ describe('NetworkController', () => {
     });
 
     describe('if a provider has been set and the resulting EthQuery object has a sendAsync method', () => {
-      describe('assuming that the version of the current network is different from the network in state', () => {
-        it('updates the network in state to match', async () => {
-          const messenger = buildMessenger();
-          await withController(
-            { messenger, state: { network: '' } },
-            async ({ controller }) => {
-              await setFakeProvider(controller, {
-                stubs: [
-                  {
-                    request: { method: 'net_version' },
-                    response: { result: '12345' },
-                  },
-                ],
-                stubLookupNetworkWhileSetting: true,
-              });
-
-              await waitForStateChanges(messenger, {
-                propertyPath: ['network'],
-                after: async () => {
-                  await controller.lookupNetwork();
-                },
-              });
-
-              expect(controller.state.network).toBe('12345');
-            },
-          );
-        });
-
-        it("publishes NetworkController:providerConfigChange with the current provider config (even though it didn't change)", async () => {
-          const messenger = buildMessenger();
-          await withController(
-            {
-              messenger,
-              state: {
-                providerConfig: {
-                  type: 'mainnet',
-                  chainId: '1',
-                },
-              },
-            },
-            async ({ controller }) => {
-              await setFakeProvider(controller, {
-                stubs: [
-                  {
-                    request: { method: 'net_version' },
-                    response: { result: '12345' },
-                  },
-                ],
-                stubLookupNetworkWhileSetting: true,
-              });
-
-              const providerConfigChanges = await waitForPublishedEvents(
-                messenger,
-                'NetworkController:providerConfigChange',
-                {
-                  after: async () => {
-                    await controller.lookupNetwork();
-                  },
-                },
-              );
-
-              expect(providerConfigChanges).toStrictEqual([
-                [
-                  {
-                    type: 'mainnet',
-                    chainId: '1',
-                  },
-                ],
-              ]);
-            },
-          );
-        });
-      });
-
-      describe('if the version of the current network is the same as that in state', () => {
-        it('does not change network in state', async () => {
-          const messenger = buildMessenger();
-          await withController(
-            { messenger, state: { network: '12345' } },
-            async ({ controller }) => {
-              await setFakeProvider(controller, {
-                stubs: [
-                  {
-                    request: { method: 'net_version' },
-                    response: { result: '12345' },
-                  },
-                ],
-                stubLookupNetworkWhileSetting: true,
-              });
-              const promiseForNetworkChanges = waitForStateChanges(messenger, {
-                propertyPath: ['network'],
-              });
-
-              await controller.lookupNetwork();
-
-              await expect(promiseForNetworkChanges).toNeverResolve();
-            },
-          );
-        });
-
-        it('does not publish NetworkController:providerConfigChange', async () => {
-          const messenger = buildMessenger();
-          await withController(
-            { messenger, state: { network: '12345' } },
-            async ({ controller }) => {
-              await setFakeProvider(controller, {
-                stubs: [
-                  {
-                    request: { method: 'net_version' },
-                    response: { result: '12345' },
-                  },
-                ],
-                stubLookupNetworkWhileSetting: true,
-              });
-              const promiseForProviderConfigChange = waitForPublishedEvents(
-                messenger,
-                'NetworkController:providerConfigChange',
-              );
-
-              await controller.lookupNetwork();
-
-              await expect(promiseForProviderConfigChange).toNeverResolve();
-            },
-          );
-        });
-      });
-
       describe('if an error is encountered while retrieving the version of the current network', () => {
-        it('updates the network in state to "loading"', async () => {
-          const messenger = buildMessenger();
-          await withController(
-            { messenger, state: { network: '1' } },
-            async ({ controller }) => {
-              await setFakeProvider(controller, {
-                stubs: [
-                  {
-                    request: { method: 'net_version' },
-                    response: { error: 'some error' },
-                  },
-                ],
-                stubLookupNetworkWhileSetting: true,
-              });
-
-              await waitForStateChanges(messenger, {
-                propertyPath: ['network'],
-                after: async () => {
-                  await controller.lookupNetwork();
-                },
-              });
-
-              expect(controller.state.network).toBe('loading');
-            },
-          );
-        });
-
         it("publishes NetworkController:providerConfigChange with the current provider config (even though it didn't change)", async () => {
           const messenger = buildMessenger();
           await withController(
@@ -1160,7 +592,9 @@ describe('NetworkController', () => {
                 'NetworkController:providerConfigChange',
                 {
                   after: async () => {
-                    await controller.lookupNetwork();
+                    await controller.lookupNetwork(
+                      controller.state.providerConfig.chainId,
+                    );
                   },
                 },
               );
@@ -1175,57 +609,6 @@ describe('NetworkController', () => {
               ]);
             },
           );
-        });
-      });
-
-      describe('if lookupNetwork is called multiple times in quick succession', () => {
-        it('waits until each call finishes before resolving the next', async () => {
-          const messenger = buildMessenger();
-          await withController({ messenger }, async ({ controller }) => {
-            await setFakeProvider(controller, {
-              stubs: [
-                {
-                  request: { method: 'net_version' },
-                  response: { result: '1' },
-                  delay: 100,
-                },
-                {
-                  request: { method: 'net_version' },
-                  response: { result: '2' },
-                  delay: 0,
-                },
-                {
-                  request: { method: 'net_version' },
-                  response: { result: '3' },
-                  delay: 200,
-                },
-              ],
-              stubLookupNetworkWhileSetting: true,
-            });
-            const promiseForStateChanges = waitForStateChanges(messenger, {
-              propertyPath: ['network'],
-              count: 3,
-              wait: 400,
-            });
-
-            await Promise.all([
-              controller.lookupNetwork(),
-              controller.lookupNetwork(),
-              controller.lookupNetwork(),
-            ]);
-
-            expect(await promiseForStateChanges).toMatchObject([
-              expect.objectContaining([
-                expect.objectContaining({ network: '1' }),
-              ]),
-              expect.objectContaining([
-                expect.objectContaining({ network: '2' }),
-              ]),
-              expect.objectContaining([
-                expect.objectContaining({ network: '3' }),
-              ]),
-            ]);
-          });
         });
       });
     });
@@ -1257,7 +640,7 @@ describe('NetworkController', () => {
             createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
 
             await waitForStateChanges(messenger, {
-              propertyPath: ['network'],
+              propertyPath: ['currentNetworkType'],
               after: () => {
                 controller.setProviderType('mainnet' as const);
               },
@@ -1274,13 +657,13 @@ describe('NetworkController', () => {
         );
       });
 
-      it('sets isCustomNetwork in state to false', async () => {
+      it('sets currentNetworkType in state to infura', async () => {
         const messenger = buildMessenger();
         await withController(
           {
             messenger,
             state: {
-              isCustomNetwork: true,
+              currentNetworkType: 'custom',
             },
             infuraProjectId: 'infura-project-id',
           },
@@ -1293,13 +676,13 @@ describe('NetworkController', () => {
             createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
 
             await waitForStateChanges(messenger, {
-              propertyPath: ['isCustomNetwork'],
+              propertyPath: ['currentNetworkType'],
               after: () => {
                 controller.setProviderType('mainnet' as const);
               },
             });
 
-            expect(controller.state.isCustomNetwork).toBe(false);
+            expect(controller.state.currentNetworkType).not.toBe('custom');
           },
         );
       });
@@ -1396,140 +779,6 @@ describe('NetworkController', () => {
           expect(fakeMetamaskProviders[0].stop).toHaveBeenCalled();
         });
       });
-
-      it('records the version of the current network in state (assuming that the request for net_version is made successfully)', async () => {
-        const messenger = buildMessenger();
-        await withController({ messenger }, async ({ controller }) => {
-          const fakeInfuraProvider = buildFakeInfuraProvider();
-          createInfuraProviderMock.mockReturnValue(fakeInfuraProvider);
-          const fakeInfuraSubprovider = buildFakeInfuraSubprovider();
-          SubproviderMock.mockReturnValue(fakeInfuraSubprovider);
-          const fakeMetamaskProvider = buildFakeMetamaskProvider([
-            {
-              request: {
-                method: 'net_version',
-                params: [],
-              },
-              response: {
-                result: '42',
-              },
-            },
-          ]);
-          createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-
-          await waitForStateChanges(messenger, {
-            propertyPath: ['network'],
-            after: () => {
-              controller.setProviderType('mainnet' as const);
-            },
-          });
-
-          expect(controller.state.network).toBe('42');
-        });
-      });
-
-      describe('when an "error" event occurs on the new provider', () => {
-        describe('if the network version could not be retrieved during the call to setProviderType', () => {
-          it('retrieves the network version again and, assuming success, persists it to state', async () => {
-            const messenger = buildMessenger();
-            await withController({ messenger }, async ({ controller }) => {
-              const fakeInfuraProvider = buildFakeInfuraProvider();
-              createInfuraProviderMock.mockReturnValue(fakeInfuraProvider);
-              const fakeInfuraSubprovider = buildFakeInfuraSubprovider();
-              SubproviderMock.mockReturnValue(fakeInfuraSubprovider);
-              const fakeMetamaskProvider = buildFakeMetamaskProvider([
-                {
-                  request: {
-                    method: 'net_version',
-                  },
-                  response: {
-                    error: 'oops',
-                  },
-                },
-                {
-                  request: {
-                    method: 'net_version',
-                  },
-                  response: {
-                    result: '42',
-                  },
-                },
-              ]);
-              createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-
-              await waitForPublishedEvents(
-                messenger,
-                'NetworkController:providerConfigChange',
-                {
-                  after: () => {
-                    controller.setProviderType('mainnet' as const);
-                    assert(controller.provider);
-                  },
-                },
-              );
-
-              await waitForStateChanges(messenger, {
-                propertyPath: ['network'],
-                after: () => {
-                  controller.provider.emit('error', { some: 'error' });
-                },
-              });
-              expect(controller.state.network).toBe('42');
-            });
-          });
-        });
-
-        describe('if the network version could be retrieved during the call to setProviderType', () => {
-          it('does not retrieve the network version again', async () => {
-            const messenger = buildMessenger();
-            await withController({ messenger }, async ({ controller }) => {
-              const fakeInfuraProvider = buildFakeInfuraProvider();
-              createInfuraProviderMock.mockReturnValue(fakeInfuraProvider);
-              const fakeInfuraSubprovider = buildFakeInfuraSubprovider();
-              SubproviderMock.mockReturnValue(fakeInfuraSubprovider);
-              const fakeMetamaskProvider = buildFakeMetamaskProvider([
-                {
-                  request: {
-                    method: 'net_version',
-                  },
-                  response: {
-                    result: '1',
-                  },
-                },
-                {
-                  request: {
-                    method: 'net_version',
-                  },
-                  response: {
-                    result: '2',
-                  },
-                },
-              ]);
-              createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-
-              await waitForPublishedEvents(
-                messenger,
-                'NetworkController:providerConfigChange',
-                {
-                  after: () => {
-                    controller.setProviderType('mainnet' as const);
-                    assert(controller.provider);
-                  },
-                },
-              );
-
-              await waitForStateChanges(messenger, {
-                propertyPath: ['network'],
-                count: 0,
-                after: () => {
-                  controller.provider.emit('error', { some: 'error' });
-                },
-              });
-              expect(controller.state.network).toBe('1');
-            });
-          });
-        });
-      });
     });
 
     (
@@ -1573,7 +822,7 @@ describe('NetworkController', () => {
               createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
 
               await waitForStateChanges(messenger, {
-                propertyPath: ['network'],
+                propertyPath: ['currentNetworkType'],
                 after: () => {
                   controller.setProviderType(networkType);
                 },
@@ -1590,13 +839,13 @@ describe('NetworkController', () => {
           );
         });
 
-        it('sets isCustomNetwork in state to false', async () => {
+        it('sets currentNetworkType in state to infura', async () => {
           const messenger = buildMessenger();
           await withController(
             {
               messenger,
               state: {
-                isCustomNetwork: true,
+                currentNetworkType: 'custom',
               },
             },
             async ({ controller }) => {
@@ -1608,13 +857,13 @@ describe('NetworkController', () => {
               createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
 
               await waitForStateChanges(messenger, {
-                propertyPath: ['isCustomNetwork'],
+                propertyPath: ['currentNetworkType'],
                 after: () => {
                   controller.setProviderType(networkType);
                 },
               });
 
-              expect(controller.state.isCustomNetwork).toBe(false);
+              expect(controller.state.currentNetworkType).not.toBe('custom');
             },
           );
         });
@@ -1713,144 +962,6 @@ describe('NetworkController', () => {
             expect(fakeMetamaskProviders[0].stop).toHaveBeenCalled();
           });
         });
-
-        it('updates the version of the current network in state (assuming that the request for net_version is made successfully)', async () => {
-          const messenger = buildMessenger();
-          await withController({ messenger }, async ({ controller }) => {
-            const fakeInfuraProvider = buildFakeInfuraProvider();
-            createInfuraProviderMock.mockReturnValue(fakeInfuraProvider);
-            const fakeInfuraSubprovider = buildFakeInfuraSubprovider();
-            SubproviderMock.mockReturnValue(fakeInfuraSubprovider);
-            const fakeMetamaskProvider = buildFakeMetamaskProvider([
-              {
-                request: {
-                  method: 'net_version',
-                  params: [],
-                },
-                response: {
-                  result: '42',
-                },
-              },
-            ]);
-            createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-
-            await waitForStateChanges(messenger, {
-              propertyPath: ['network'],
-              after: () => {
-                controller.setProviderType(networkType);
-              },
-            });
-
-            expect(controller.state.network).toBe('42');
-          });
-        });
-
-        describe('when an "error" event occurs on the new provider', () => {
-          describe('if the network version could not be retrieved during setProviderType', () => {
-            it('retrieves the network version again and, assuming success, persists it to state', async () => {
-              const messenger = buildMessenger();
-              await withController({ messenger }, async ({ controller }) => {
-                const fakeInfuraProvider = buildFakeInfuraProvider();
-                createInfuraProviderMock.mockReturnValue(fakeInfuraProvider);
-                const fakeInfuraSubprovider = buildFakeInfuraSubprovider();
-                SubproviderMock.mockReturnValue(fakeInfuraSubprovider);
-                const fakeMetamaskProvider = buildFakeMetamaskProvider([
-                  {
-                    request: {
-                      method: 'net_version',
-                    },
-                    response: {
-                      error: 'oops',
-                    },
-                  },
-                  {
-                    request: {
-                      method: 'net_version',
-                    },
-                    response: {
-                      result: '42',
-                    },
-                  },
-                ]);
-                createMetamaskProviderMock.mockReturnValue(
-                  fakeMetamaskProvider,
-                );
-
-                await waitForPublishedEvents(
-                  messenger,
-                  'NetworkController:providerConfigChange',
-                  {
-                    after: () => {
-                      controller.setProviderType(networkType);
-                      assert(controller.provider);
-                    },
-                  },
-                );
-
-                await waitForStateChanges(messenger, {
-                  propertyPath: ['network'],
-                  after: () => {
-                    controller.provider.emit('error', { some: 'error' });
-                  },
-                });
-                expect(controller.state.network).toBe('42');
-              });
-            });
-          });
-
-          describe('if the network version could be retrieved during setProviderType', () => {
-            it('does not retrieve the network version again', async () => {
-              const messenger = buildMessenger();
-              await withController({ messenger }, async ({ controller }) => {
-                const fakeInfuraProvider = buildFakeInfuraProvider();
-                createInfuraProviderMock.mockReturnValue(fakeInfuraProvider);
-                const fakeInfuraSubprovider = buildFakeInfuraSubprovider();
-                SubproviderMock.mockReturnValue(fakeInfuraSubprovider);
-                const fakeMetamaskProvider = buildFakeMetamaskProvider([
-                  {
-                    request: {
-                      method: 'net_version',
-                    },
-                    response: {
-                      result: '1',
-                    },
-                  },
-                  {
-                    request: {
-                      method: 'net_version',
-                    },
-                    response: {
-                      result: '2',
-                    },
-                  },
-                ]);
-                createMetamaskProviderMock.mockReturnValue(
-                  fakeMetamaskProvider,
-                );
-
-                await waitForPublishedEvents(
-                  messenger,
-                  'NetworkController:providerConfigChange',
-                  {
-                    after: () => {
-                      controller.setProviderType(networkType);
-                      assert(controller.provider);
-                    },
-                  },
-                );
-
-                await waitForStateChanges(messenger, {
-                  propertyPath: ['network'],
-                  count: 0,
-                  after: () => {
-                    controller.provider.emit('error', { some: 'error' });
-                  },
-                });
-                expect(controller.state.network).toBe('1');
-              });
-            });
-          });
-        });
       });
     });
 
@@ -1888,31 +999,6 @@ describe('NetworkController', () => {
               rpcTarget: undefined,
               nickname: undefined,
             });
-          },
-        );
-      });
-
-      it('does not set isCustomNetwork in state to false (because the chain ID is cleared)', async () => {
-        const messenger = buildMessenger();
-        await withController(
-          {
-            messenger,
-            state: {
-              isCustomNetwork: false,
-            },
-            infuraProjectId: 'infura-project-id',
-          },
-          async ({ controller }) => {
-            const fakeMetamaskProvider = buildFakeMetamaskProvider();
-            createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-            const promiseForIsCustomNetworkChange = waitForStateChanges(
-              messenger,
-              { propertyPath: ['isCustomNetwork'] },
-            );
-
-            controller.setProviderType('rpc' as const);
-
-            await expect(promiseForIsCustomNetworkChange).toNeverResolve();
           },
         );
       });
@@ -1987,7 +1073,7 @@ describe('NetworkController', () => {
             createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
 
             await waitForStateChanges(messenger, {
-              propertyPath: ['network'],
+              propertyPath: ['currentNetworkType'],
               after: () => {
                 controller.setProviderType('localhost' as const);
               },
@@ -2004,13 +1090,13 @@ describe('NetworkController', () => {
         );
       });
 
-      it('sets isCustomNetwork in state to false', async () => {
+      it('sets currentNetworkType in state to infura', async () => {
         const messenger = buildMessenger();
         await withController(
           {
             messenger,
             state: {
-              isCustomNetwork: true,
+              currentNetworkType: 'custom',
             },
           },
           async ({ controller }) => {
@@ -2018,13 +1104,13 @@ describe('NetworkController', () => {
             createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
 
             await waitForStateChanges(messenger, {
-              propertyPath: ['isCustomNetwork'],
+              propertyPath: ['currentNetworkType'],
               after: () => {
                 controller.setProviderType('localhost' as const);
               },
             });
 
-            expect(controller.state.isCustomNetwork).toBe(false);
+            expect(controller.state.currentNetworkType).toBe('infura');
           },
         );
       });
@@ -2095,128 +1181,6 @@ describe('NetworkController', () => {
           expect(fakeMetamaskProviders[0].stop).toHaveBeenCalled();
         });
       });
-
-      it('updates the version of the current network in state (assuming that the request for net_version is made successfully)', async () => {
-        const messenger = buildMessenger();
-        await withController({ messenger }, async ({ controller }) => {
-          const fakeMetamaskProvider = buildFakeMetamaskProvider([
-            {
-              request: {
-                method: 'net_version',
-                params: [],
-              },
-              response: {
-                result: '42',
-              },
-            },
-          ]);
-          createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-
-          await waitForStateChanges(messenger, {
-            propertyPath: ['network'],
-            after: () => {
-              controller.setProviderType('localhost' as const);
-            },
-          });
-
-          expect(controller.state.network).toBe('42');
-        });
-      });
-
-      describe('when an "error" event occurs on the new provider', () => {
-        describe('if the network version could not be retrieved during setProviderType', () => {
-          it('retrieves the network version again and, assuming success, persists it to state', async () => {
-            const messenger = buildMessenger();
-            await withController({ messenger }, async ({ controller }) => {
-              const fakeMetamaskProvider = buildFakeMetamaskProvider([
-                {
-                  request: {
-                    method: 'net_version',
-                  },
-                  response: {
-                    error: 'oops',
-                  },
-                },
-                {
-                  request: {
-                    method: 'net_version',
-                  },
-                  response: {
-                    result: '42',
-                  },
-                },
-              ]);
-              createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-
-              await waitForPublishedEvents(
-                messenger,
-                'NetworkController:providerConfigChange',
-                {
-                  after: () => {
-                    controller.setProviderType('localhost' as const);
-                    assert(controller.provider);
-                  },
-                },
-              );
-
-              await waitForStateChanges(messenger, {
-                propertyPath: ['network'],
-                after: () => {
-                  controller.provider.emit('error', { some: 'error' });
-                },
-              });
-              expect(controller.state.network).toBe('42');
-            });
-          });
-        });
-
-        describe('if the network version could be retrieved during setProviderType', () => {
-          it('does not retrieve the network version again', async () => {
-            const messenger = buildMessenger();
-            await withController({ messenger }, async ({ controller }) => {
-              const fakeMetamaskProvider = buildFakeMetamaskProvider([
-                {
-                  request: {
-                    method: 'net_version',
-                  },
-                  response: {
-                    result: '1',
-                  },
-                },
-                {
-                  request: {
-                    method: 'net_version',
-                  },
-                  response: {
-                    result: '2',
-                  },
-                },
-              ]);
-              createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-
-              await waitForPublishedEvents(
-                messenger,
-                'NetworkController:providerConfigChange',
-                {
-                  after: () => {
-                    controller.setProviderType('localhost' as const);
-                    assert(controller.provider);
-                  },
-                },
-              );
-
-              await waitForStateChanges(messenger, {
-                propertyPath: ['network'],
-                count: 0,
-                after: () => {
-                  controller.provider.emit('error', { some: 'error' });
-                },
-              });
-              expect(controller.state.network).toBe('1');
-            });
-          });
-        });
-      });
     });
   });
 
@@ -2242,7 +1206,7 @@ describe('NetworkController', () => {
             createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
 
             await waitForStateChanges(messenger, {
-              propertyPath: ['network'],
+              propertyPath: ['currentNetworkType'],
               after: () => {
                 controller.setRpcTarget('http://example.com', '123');
               },
@@ -2259,13 +1223,13 @@ describe('NetworkController', () => {
         );
       });
 
-      it('sets isCustomNetwork in state to true', async () => {
+      it('sets currentNetworkType in state to custom', async () => {
         const messenger = buildMessenger();
         await withController(
           {
             messenger,
             state: {
-              isCustomNetwork: false,
+              currentNetworkType: 'infura',
             },
           },
           async ({ controller }) => {
@@ -2273,13 +1237,13 @@ describe('NetworkController', () => {
             createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
 
             await waitForStateChanges(messenger, {
-              propertyPath: ['isCustomNetwork'],
+              propertyPath: ['currentNetworkType'],
               after: () => {
                 controller.setRpcTarget('http://example.com', '123');
               },
             });
 
-            expect(controller.state.isCustomNetwork).toBe(true);
+            expect(controller.state.currentNetworkType).toBe('custom');
           },
         );
       });
@@ -2350,128 +1314,6 @@ describe('NetworkController', () => {
           expect(fakeMetamaskProviders[0].stop).toHaveBeenCalled();
         });
       });
-
-      it('updates the version of the current network in state (assuming that the request for net_version is made successfully)', async () => {
-        const messenger = buildMessenger();
-        await withController({ messenger }, async ({ controller }) => {
-          const fakeMetamaskProvider = buildFakeMetamaskProvider([
-            {
-              request: {
-                method: 'net_version',
-                params: [],
-              },
-              response: {
-                result: '42',
-              },
-            },
-          ]);
-          createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-
-          await waitForStateChanges(messenger, {
-            propertyPath: ['network'],
-            after: () => {
-              controller.setRpcTarget('http://example.com', '123');
-            },
-          });
-
-          expect(controller.state.network).toBe('42');
-        });
-      });
-
-      describe('when an "error" event occurs on the new provider', () => {
-        describe('if the network version could not be retrieved during the call to setRpcTarget', () => {
-          it('retrieves the network version again and, assuming success, persists it to state', async () => {
-            const messenger = buildMessenger();
-            await withController({ messenger }, async ({ controller }) => {
-              const fakeMetamaskProvider = buildFakeMetamaskProvider([
-                {
-                  request: {
-                    method: 'net_version',
-                  },
-                  response: {
-                    error: 'oops',
-                  },
-                },
-                {
-                  request: {
-                    method: 'net_version',
-                  },
-                  response: {
-                    result: '42',
-                  },
-                },
-              ]);
-              createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-
-              await waitForPublishedEvents(
-                messenger,
-                'NetworkController:providerConfigChange',
-                {
-                  after: () => {
-                    controller.setRpcTarget('http://example.com', '123');
-                    assert(controller.provider);
-                  },
-                },
-              );
-
-              await waitForStateChanges(messenger, {
-                propertyPath: ['network'],
-                after: () => {
-                  controller.provider.emit('error', { some: 'error' });
-                },
-              });
-              expect(controller.state.network).toBe('42');
-            });
-          });
-        });
-
-        describe('if the network version could be retrieved during the call to setRpcTarget', () => {
-          it('does not retrieve the network version again', async () => {
-            const messenger = buildMessenger();
-            await withController({ messenger }, async ({ controller }) => {
-              const fakeMetamaskProvider = buildFakeMetamaskProvider([
-                {
-                  request: {
-                    method: 'net_version',
-                  },
-                  response: {
-                    result: '1',
-                  },
-                },
-                {
-                  request: {
-                    method: 'net_version',
-                  },
-                  response: {
-                    result: '2',
-                  },
-                },
-              ]);
-              createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-
-              await waitForPublishedEvents(
-                messenger,
-                'NetworkController:providerConfigChange',
-                {
-                  after: () => {
-                    controller.setRpcTarget('http://example.com', '123');
-                    assert(controller.provider);
-                  },
-                },
-              );
-
-              await waitForStateChanges(messenger, {
-                propertyPath: ['network'],
-                count: 0,
-                after: () => {
-                  controller.provider.emit('error', { some: 'error' });
-                },
-              });
-              expect(controller.state.network).toBe('1');
-            });
-          });
-        });
-      });
     });
 
     describe('given an RPC target, chain ID, ticker, and nickname', () => {
@@ -2495,7 +1337,7 @@ describe('NetworkController', () => {
             createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
 
             await waitForStateChanges(messenger, {
-              propertyPath: ['network'],
+              propertyPath: ['currentNetworkType'],
               after: () => {
                 controller.setRpcTarget(
                   'http://example.com',
@@ -2517,13 +1359,13 @@ describe('NetworkController', () => {
         );
       });
 
-      it('sets isCustomNetwork in state to true', async () => {
+      it('sets currentNetworkType in state to custom', async () => {
         const messenger = buildMessenger();
         await withController(
           {
             messenger,
             state: {
-              isCustomNetwork: false,
+              currentNetworkType: 'infura',
             },
           },
           async ({ controller }) => {
@@ -2531,7 +1373,7 @@ describe('NetworkController', () => {
             createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
 
             await waitForStateChanges(messenger, {
-              propertyPath: ['isCustomNetwork'],
+              propertyPath: ['currentNetworkType'],
               after: () => {
                 controller.setRpcTarget(
                   'http://example.com',
@@ -2542,7 +1384,7 @@ describe('NetworkController', () => {
               },
             });
 
-            expect(controller.state.isCustomNetwork).toBe(true);
+            expect(controller.state.currentNetworkType).toBe('custom');
           },
         );
       });
@@ -2631,143 +1473,6 @@ describe('NetworkController', () => {
           jest.runAllTimers();
 
           expect(fakeMetamaskProviders[0].stop).toHaveBeenCalled();
-        });
-      });
-
-      it('updates the version of the current network in state (assuming that the request for net_version is made successfully)', async () => {
-        const messenger = buildMessenger();
-        await withController({ messenger }, async ({ controller }) => {
-          const fakeMetamaskProvider = buildFakeMetamaskProvider([
-            {
-              request: {
-                method: 'net_version',
-                params: [],
-              },
-              response: {
-                result: '42',
-              },
-            },
-          ]);
-          createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-
-          await waitForStateChanges(messenger, {
-            propertyPath: ['network'],
-            after: () => {
-              controller.setRpcTarget(
-                'http://example.com',
-                '123',
-                'ABC',
-                'cool network',
-              );
-            },
-          });
-
-          expect(controller.state.network).toBe('42');
-        });
-      });
-
-      describe('when an "error" event occurs on the new provider', () => {
-        describe('if the network version could not be retrieved during the call to setRpcTarget', () => {
-          it('retrieves the network version again and, assuming success, persists it to state', async () => {
-            const messenger = buildMessenger();
-            await withController({ messenger }, async ({ controller }) => {
-              const fakeMetamaskProvider = buildFakeMetamaskProvider([
-                {
-                  request: {
-                    method: 'net_version',
-                  },
-                  response: {
-                    error: 'oops',
-                  },
-                },
-                {
-                  request: {
-                    method: 'net_version',
-                  },
-                  response: {
-                    result: '42',
-                  },
-                },
-              ]);
-              createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-
-              await waitForPublishedEvents(
-                messenger,
-                'NetworkController:providerConfigChange',
-                {
-                  after: () => {
-                    controller.setRpcTarget(
-                      'http://example.com',
-                      '123',
-                      'ABC',
-                      'cool network',
-                    );
-                    assert(controller.provider);
-                  },
-                },
-              );
-
-              await waitForStateChanges(messenger, {
-                propertyPath: ['network'],
-                after: () => {
-                  controller.provider.emit('error', { some: 'error' });
-                },
-              });
-              expect(controller.state.network).toBe('42');
-            });
-          });
-        });
-
-        describe('if the network version could be retrieved during the call to setRpcTarget', () => {
-          it('does not retrieve the network version again', async () => {
-            const messenger = buildMessenger();
-            await withController({ messenger }, async ({ controller }) => {
-              const fakeMetamaskProvider = buildFakeMetamaskProvider([
-                {
-                  request: {
-                    method: 'net_version',
-                  },
-                  response: {
-                    result: '1',
-                  },
-                },
-                {
-                  request: {
-                    method: 'net_version',
-                  },
-                  response: {
-                    result: '2',
-                  },
-                },
-              ]);
-              createMetamaskProviderMock.mockReturnValue(fakeMetamaskProvider);
-
-              await waitForPublishedEvents(
-                messenger,
-                'NetworkController:providerConfigChange',
-                {
-                  after: () => {
-                    controller.setRpcTarget(
-                      'http://example.com',
-                      '123',
-                      'ABC',
-                      'cool network',
-                    );
-                    assert(controller.provider);
-                  },
-                },
-              );
-
-              await waitForStateChanges(messenger, {
-                propertyPath: ['network'],
-                count: 0,
-                after: () => {
-                  controller.provider.emit('error', { some: 'error' });
-                },
-              });
-              expect(controller.state.network).toBe('1');
-            });
-          });
         });
       });
     });

@@ -1,6 +1,10 @@
 import * as sinon from 'sinon';
 import HttpProvider from 'ethjs-provider-http';
-import { NetworksChainId, NetworkType } from '@metamask/controller-utils';
+import {
+  CurrentNetworkType,
+  NetworksChainId,
+  NetworkType,
+} from '@metamask/controller-utils';
 import type { NetworkState } from '@metamask/network-controller';
 import { ESTIMATE_GAS_ERROR } from './utils';
 import {
@@ -131,8 +135,7 @@ const MAINNET_PROVIDER = new HttpProvider(
 const MOCK_NETWORK = {
   getProvider: () => PROVIDER,
   state: {
-    network: '5',
-    isCustomNetwork: false,
+    currentNetworkType: 'infura' as CurrentNetworkType,
     properties: { isEIP1559Compatible: false },
     providerConfig: {
       type: 'goerli' as NetworkType,
@@ -144,8 +147,7 @@ const MOCK_NETWORK = {
 const MOCK_NETWORK_CUSTOM = {
   getProvider: () => PROVIDER,
   state: {
-    network: '10',
-    isCustomNetwork: true,
+    currentNetworkType: 'custom' as CurrentNetworkType,
     properties: { isEIP1559Compatible: false },
     providerConfig: {
       type: 'rpc' as NetworkType,
@@ -156,15 +158,14 @@ const MOCK_NETWORK_CUSTOM = {
 };
 const MOCK_NETWORK_WITHOUT_CHAIN_ID = {
   getProvider: () => PROVIDER,
-  isCustomNetwork: false,
-  state: { network: '5', providerConfig: { type: 'goerli' as NetworkType } },
+  currentNetworkType: 'infura' as CurrentNetworkType,
+  state: { providerConfig: { type: 'goerli' as NetworkType } },
   subscribe: () => undefined,
 };
 const MOCK_MAINNET_NETWORK = {
   getProvider: () => MAINNET_PROVIDER,
   state: {
-    network: '1',
-    isCustomNetwork: false,
+    currentNetworkType: 'infura' as CurrentNetworkType,
     properties: { isEIP1559Compatible: false },
     providerConfig: {
       type: 'mainnet' as NetworkType,
@@ -176,8 +177,7 @@ const MOCK_MAINNET_NETWORK = {
 const MOCK_CUSTOM_NETWORK = {
   getProvider: () => MAINNET_PROVIDER,
   state: {
-    network: '80001',
-    isCustomNetwork: true,
+    currentNetworkType: 'custom' as CurrentNetworkType,
     properties: { isEIP1559Compatible: false },
     providerConfig: {
       type: 'rpc' as NetworkType,
@@ -502,9 +502,6 @@ describe('TransactionController', () => {
       to: from,
     });
     expect(controller.state.transactions[0].transaction.from).toBe(from);
-    expect(controller.state.transactions[0].networkID).toBe(
-      MOCK_NETWORK.state.network,
-    );
 
     expect(controller.state.transactions[0].chainId).toBe(
       MOCK_NETWORK.state.providerConfig.chainId,
@@ -541,9 +538,6 @@ describe('TransactionController', () => {
       to: from,
     });
     expect(controller.state.transactions[0].transaction.from).toBe(from);
-    expect(controller.state.transactions[0].networkID).toBe(
-      MOCK_MAINNET_NETWORK.state.network,
-    );
 
     expect(controller.state.transactions[0].chainId).toBe(
       MOCK_MAINNET_NETWORK.state.providerConfig.chainId,
@@ -580,9 +574,6 @@ describe('TransactionController', () => {
       to: from,
     });
     expect(controller.state.transactions[0].transaction.from).toBe(from);
-    expect(controller.state.transactions[0].networkID).toBe(
-      MOCK_NETWORK_CUSTOM.state.network,
-    );
 
     expect(controller.state.transactions[0].chainId).toBe(
       MOCK_NETWORK_CUSTOM.state.providerConfig.chainId,
@@ -634,25 +625,6 @@ describe('TransactionController', () => {
       from,
       to: from,
     });
-    controller.wipeTransactions();
-    expect(controller.state.transactions).toHaveLength(0);
-  });
-
-  // This tests the fallback to networkID only when there is no chainId present. Should be removed when networkID is completely removed.
-  it('should wipe transactions using networkID when there is no chainId', async () => {
-    const controller = new TransactionController({
-      getNetworkState: () => MOCK_NETWORK.state,
-      onNetworkStateChange: MOCK_NETWORK.subscribe,
-      getProvider: MOCK_NETWORK.getProvider,
-    });
-    controller.wipeTransactions();
-    controller.state.transactions.push({
-      from: MOCK_PRFERENCES.state.selectedAddress,
-      id: 'foo',
-      networkID: '5',
-      status: TransactionStatus.submitted,
-      transactionHash: '1337',
-    } as any);
     controller.wipeTransactions();
     expect(controller.state.transactions).toHaveLength(0);
   });
@@ -853,43 +825,7 @@ describe('TransactionController', () => {
       controller.state.transactions.push({
         from: MOCK_PRFERENCES.state.selectedAddress,
         id: 'foo',
-        networkID: '5',
         chainId: '5',
-        status: TransactionStatus.submitted,
-        transactionHash: '1337',
-      } as any);
-      controller.state.transactions.push({} as any);
-
-      controller.hub.once(
-        `${controller.state.transactions[0].id}:confirmed`,
-        () => {
-          expect(controller.state.transactions[0].status).toBe(
-            TransactionStatus.confirmed,
-          );
-          resolve('');
-        },
-      );
-      controller.queryTransactionStatuses();
-    });
-  });
-
-  // This tests the fallback to networkID only when there is no chainId present. Should be removed when networkID is completely removed.
-  it('should query transaction statuses with networkID only when there is no chainId', async () => {
-    await new Promise((resolve) => {
-      const controller = new TransactionController(
-        {
-          getNetworkState: () => MOCK_NETWORK.state,
-          onNetworkStateChange: MOCK_NETWORK.subscribe,
-          getProvider: MOCK_NETWORK.getProvider,
-        },
-        {
-          sign: async (transaction: any) => transaction,
-        },
-      );
-      controller.state.transactions.push({
-        from: MOCK_PRFERENCES.state.selectedAddress,
-        id: 'foo',
-        networkID: '5',
         status: TransactionStatus.submitted,
         transactionHash: '1337',
       } as any);
