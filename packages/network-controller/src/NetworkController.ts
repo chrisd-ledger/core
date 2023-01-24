@@ -3,7 +3,7 @@ import Subprovider from 'web3-provider-engine/subproviders/provider';
 import createInfuraProvider from 'eth-json-rpc-infura/src/createProvider';
 import createMetamaskProvider from 'web3-provider-engine/zero';
 import { Mutex } from 'async-mutex';
-import { v1 as random } from 'uuid';
+import { v4 as random } from 'uuid';
 import type { Patch } from 'immer';
 import {
   BaseControllerV2,
@@ -473,7 +473,7 @@ export class NetworkController extends BaseControllerV2<
    * @param config.rpcPrefs - Personalized preferences.
    * @returns uuid for the added or updated network configuration
    */
-  addNetworkConfigurations({
+  upsertNetworkConfiguration({
     rpcUrl,
     chainId,
     ticker,

@@ -3753,15 +3753,15 @@ describe('NetworkController', () => {
           rpcUrl: 'http://localhost:8545',
           ticker: 'LOCAL',
         };
-        controller.addNetworkConfigurations(rpcUrlNetwork);
-        controller.addNetworkConfigurations(localhostNetwork);
+        controller.upsertNetworkConfiguration(rpcUrlNetwork);
+        controller.upsertNetworkConfiguration(localhostNetwork);
 
         expect(
           Object.values(controller.state.networkConfigurations),
         ).toStrictEqual(
           expect.arrayContaining([rpcUrlNetwork, localhostNetwork]),
         );
-        controller.addNetworkConfigurations({ rpcUrl: 'rpc_url' });
+        controller.upsertNetworkConfiguration({ rpcUrl: 'rpc_url' });
 
         expect(
           Object.values(controller.state.networkConfigurations),
@@ -3777,7 +3777,7 @@ describe('NetworkController', () => {
     it('should update a network configuration when the configuration being added has an rpcURL that matches an existing configuration', async () => {
       const messenger = buildMessenger();
       await withController({ messenger }, async ({ controller }) => {
-        controller.addNetworkConfigurations({
+        controller.upsertNetworkConfiguration({
           rpcUrl: 'test_rpc_url',
           ticker: 'old_rpc_ticker',
           nickname: 'old_rpc_nickname',
@@ -3795,7 +3795,7 @@ describe('NetworkController', () => {
           }),
         ]);
 
-        controller.addNetworkConfigurations({
+        controller.upsertNetworkConfiguration({
           rpcUrl: 'test_rpc_url',
           ticker: 'new_rpc_ticker',
           nickname: 'new_rpc_nickname',
@@ -3825,7 +3825,8 @@ describe('NetworkController', () => {
           rpcUrl: 'rpc_url',
           ticker: 'TEST',
         };
-        const uuid_rpc_url = controller.addNetworkConfigurations(rpcUrlNetwork);
+        const uuid_rpc_url =
+          controller.upsertNetworkConfiguration(rpcUrlNetwork);
 
         expect(
           Object.values(controller.state.networkConfigurations),
