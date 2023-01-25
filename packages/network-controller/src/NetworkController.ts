@@ -512,7 +512,7 @@ export class NetworkController extends BaseControllerV2<
   /**
    * Removes network configuration from state.
    *
-   * @param uuid - Custom RPC URL.
+   * @param uuid - The UUID of an existing network configuration
    */
   removeNetworkConfiguration(uuid: string) {
     this.update((state) => {
