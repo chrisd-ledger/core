@@ -480,8 +480,6 @@ export class NetworkController extends BaseControllerV2<
     nickname,
     rpcPrefs,
   }: NetworkConfiguration): string {
-    const networkConfigurations = { ...this.state.networkConfigurations };
-
     const newNetworkConfiguration: NetworkConfiguration = {
       rpcUrl,
       chainId,
@@ -490,25 +488,20 @@ export class NetworkController extends BaseControllerV2<
       rpcPrefs,
     };
 
-    for (const configUUID in networkConfigurations) {
-      if (
-        networkConfigurations[configUUID].rpcUrl.toLowerCase() ===
-        rpcUrl.toLowerCase()
-      ) {
-        // update existing config
-        networkConfigurations[configUUID] = newNetworkConfiguration;
+    for (const [configUUID, networkConfiguration] of Object.entries(
+      this.state.networkConfigurations,
+    )) {
+      if (networkConfiguration.rpcUrl.toLowerCase() === rpcUrl.toLowerCase()) {
         this.update((state) => {
-          state.networkConfigurations = networkConfigurations;
+          state.networkConfigurations[configUUID] = newNetworkConfiguration;
         });
         return configUUID;
       }
     }
 
     const uuid = random();
-    networkConfigurations[uuid] = newNetworkConfiguration;
-
     this.update((state) => {
-      state.networkConfigurations = networkConfigurations;
+      state.networkConfigurations[uuid] = newNetworkConfiguration;
     });
 
     return uuid;
@@ -519,12 +512,9 @@ export class NetworkController extends BaseControllerV2<
    *
    * @param uuid - Custom RPC URL.
    */
-  removeNetworkConfigurations(uuid: string) {
-    const networkConfigurations = { ...this.state.networkConfigurations };
-    delete networkConfigurations[uuid];
-
+  removeNetworkConfiguration(uuid: string) {
     this.update((state) => {
-      state.networkConfigurations = networkConfigurations;
+      delete state.networkConfigurations[uuid];
     });
   }
 }

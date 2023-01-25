@@ -3735,7 +3735,7 @@ describe('NetworkController', () => {
     });
   });
 
-  describe('Network Configurations', () => {
+  describe('upsertNetworkConfiguration', () => {
     it('should add a network configuration', async () => {
       const messenger = buildMessenger();
       await withController({ messenger }, async ({ controller }) => {
@@ -3746,93 +3746,88 @@ describe('NetworkController', () => {
           rpcUrl: 'rpc_url',
           ticker: 'RPC',
         };
-        const localhostNetwork = {
-          chainId: undefined,
-          nickname: undefined,
-          rpcPrefs: undefined,
-          rpcUrl: 'http://localhost:8545',
-          ticker: 'LOCAL',
-        };
+
+        expect(controller.state.networkConfigurations).toStrictEqual({});
+
         controller.upsertNetworkConfiguration(rpcUrlNetwork);
-        controller.upsertNetworkConfiguration(localhostNetwork);
 
         expect(
           Object.values(controller.state.networkConfigurations),
-        ).toStrictEqual(
-          expect.arrayContaining([rpcUrlNetwork, localhostNetwork]),
-        );
-        controller.upsertNetworkConfiguration({ rpcUrl: 'rpc_url' });
-
-        expect(
-          Object.values(controller.state.networkConfigurations),
-        ).toStrictEqual(
-          expect.arrayContaining([
-            localhostNetwork,
-            { ...rpcUrlNetwork, nickname: undefined, ticker: undefined },
-          ]),
-        );
+        ).toStrictEqual(expect.arrayContaining([rpcUrlNetwork]));
       });
     });
 
     it('should update a network configuration when the configuration being added has an rpcURL that matches an existing configuration', async () => {
-      const messenger = buildMessenger();
-      await withController({ messenger }, async ({ controller }) => {
-        controller.upsertNetworkConfiguration({
-          rpcUrl: 'test_rpc_url',
-          ticker: 'old_rpc_ticker',
-          nickname: 'old_rpc_nickname',
-        });
-
-        expect(
-          Object.values(controller.state.networkConfigurations),
-        ).toStrictEqual([
-          expect.objectContaining({
+      await withController(
+        {
+          state: {
+            networkConfigurations: {
+              testUUID: {
+                rpcUrl: 'test_rpc_url',
+                ticker: 'old_rpc_ticker',
+                nickname: 'old_rpc_nickname',
+                rpcPrefs: { blockExplorerUrl: 'testchainscan.io' },
+                chainId: '1',
+              },
+            },
+          },
+        },
+        async ({ controller }) => {
+          controller.upsertNetworkConfiguration({
             rpcUrl: 'test_rpc_url',
-            nickname: 'old_rpc_nickname',
-            ticker: 'old_rpc_ticker',
-            rpcPrefs: undefined,
-            chainId: undefined,
-          }),
-        ]);
-
-        controller.upsertNetworkConfiguration({
-          rpcUrl: 'test_rpc_url',
-          ticker: 'new_rpc_ticker',
-          nickname: 'new_rpc_nickname',
-        });
-
-        expect(
-          Object.values(controller.state.networkConfigurations),
-        ).toStrictEqual([
-          expect.objectContaining({
-            rpcUrl: 'test_rpc_url',
-            nickname: 'new_rpc_nickname',
             ticker: 'new_rpc_ticker',
-            rpcPrefs: undefined,
-            chainId: undefined,
-          }),
-        ]);
-      });
+            nickname: 'new_rpc_nickname',
+            rpcPrefs: { blockExplorerUrl: 'alternativetestchainscan.io' },
+            chainId: '1',
+          });
+          expect(
+            Object.values(controller.state.networkConfigurations),
+          ).toStrictEqual([
+            expect.objectContaining({
+              rpcUrl: 'test_rpc_url',
+              nickname: 'new_rpc_nickname',
+              ticker: 'new_rpc_ticker',
+              rpcPrefs: { blockExplorerUrl: 'alternativetestchainscan.io' },
+              chainId: '1',
+            }),
+          ]);
+        },
+      );
     });
 
-    it('should remove a network configuration', async () => {
-      const messenger = buildMessenger();
-      await withController({ messenger }, async ({ controller }) => {
-        const rpcUrlNetwork = {
-          chainId: '0x123',
-          nickname: 'test_rpc_url',
-          rpcPrefs: { blockExplorerUrl: 'test_block_explorer' },
-          rpcUrl: 'rpc_url',
-          ticker: 'TEST',
-        };
-        const uuid_rpc_url =
-          controller.upsertNetworkConfiguration(rpcUrlNetwork);
-
-        expect(
-          Object.values(controller.state.networkConfigurations),
-        ).toStrictEqual([rpcUrlNetwork]);
-        controller.removeNetworkConfigurations(uuid_rpc_url);
-        expect(controller.state.networkConfigurations).toStrictEqual({});
+    describe('removeNetworkConfigurations', () => {
+      it('should remove a network configuration', async () => {
+        const testUUID = 'testUUID';
+        await withController(
+          {
+            state: {
+              networkConfigurations: {
+                [testUUID]: {
+                  rpcUrl: 'test_rpc_url',
+                  ticker: 'old_rpc_ticker',
+                  nickname: 'old_rpc_nickname',
+                  rpcPrefs: { blockExplorerUrl: 'testchainscan.io' },
+                  chainId: '1',
+                },
+              },
+            },
+          },
+          async ({ controller }) => {
+            expect(
+              Object.values(controller.state.networkConfigurations),
+            ).toStrictEqual([
+              {
+                rpcUrl: 'test_rpc_url',
+                ticker: 'old_rpc_ticker',
+                nickname: 'old_rpc_nickname',
+                rpcPrefs: { blockExplorerUrl: 'testchainscan.io' },
+                chainId: '1',
+              },
+            ]);
+            controller.removeNetworkConfiguration(testUUID);
+            expect(controller.state.networkConfigurations).toStrictEqual({});
+          },
+        );
       });
     });
   });
