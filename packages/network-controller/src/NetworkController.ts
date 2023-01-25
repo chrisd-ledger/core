@@ -66,9 +66,11 @@ export type NetworkConfiguration = {
  * @type NetworkState
  *
  * Network controller state
- * @property network - Network ID as per net_version
- * @property isCustomNetwork - Identifies if the network is a custom network
- * @property provider - RPC URL and network name provider settings
+ * @property network - Network ID as per net_version of the currently connected network
+ * @property isCustomNetwork - Identifies if the currently connected network is a custom network
+ * @property providerConfig - RPC URL and network name provider settings of the currently connected network
+ * @property properties - an additional set of network properties for the currently connected network
+ * @property networkConfigurations - the full list of configured networks either preloaded or added by the user.
  */
 export type NetworkState = {
   network: string;
@@ -480,7 +482,7 @@ export class NetworkController extends BaseControllerV2<
     nickname,
     rpcPrefs,
   }: NetworkConfiguration): string {
-    const newNetworkConfiguration: NetworkConfiguration = {
+    const newNetworkConfiguration = {
       rpcUrl,
       chainId,
       ticker,
