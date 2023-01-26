@@ -3736,7 +3736,7 @@ describe('NetworkController', () => {
   });
 
   describe('upsertNetworkConfiguration', () => {
-    it('should add a network configuration', async () => {
+    it('add a network configuration', async () => {
       const messenger = buildMessenger();
       await withController({ messenger }, async ({ controller }) => {
         const rpcUrlNetwork = {
@@ -3757,7 +3757,7 @@ describe('NetworkController', () => {
       });
     });
 
-    it('should update a network configuration when the configuration being added has an rpcURL that matches an existing configuration', async () => {
+    it('update a network configuration when the configuration being added has an rpcURL that matches an existing configuration', async () => {
       await withController(
         {
           state: {
@@ -3796,7 +3796,7 @@ describe('NetworkController', () => {
     });
 
     describe('removeNetworkConfigurations', () => {
-      it('should remove a network configuration', async () => {
+      it('remove a network configuration', async () => {
         const testUUID = 'testUUID';
         await withController(
           {
