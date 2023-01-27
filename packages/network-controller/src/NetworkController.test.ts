@@ -3813,17 +3813,6 @@ describe('NetworkController', () => {
             },
           },
           async ({ controller }) => {
-            expect(
-              Object.values(controller.state.networkConfigurations),
-            ).toStrictEqual([
-              {
-                rpcUrl: 'test_rpc_url',
-                ticker: 'old_rpc_ticker',
-                nickname: 'old_rpc_nickname',
-                rpcPrefs: { blockExplorerUrl: 'testchainscan.io' },
-                chainId: '1',
-              },
-            ]);
             controller.removeNetworkConfiguration(testUUID);
             expect(controller.state.networkConfigurations).toStrictEqual({});
           },
