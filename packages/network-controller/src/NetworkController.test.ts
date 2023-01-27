@@ -3736,7 +3736,7 @@ describe('NetworkController', () => {
   });
 
   describe('upsertNetworkConfiguration', () => {
-    it('add a network configuration', async () => {
+    it('adds the given network configuration when its rpcURL does not match an existing configuration', async () => {
       const messenger = buildMessenger();
       await withController({ messenger }, async ({ controller }) => {
         const rpcUrlNetwork = {
