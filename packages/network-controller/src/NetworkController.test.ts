@@ -218,7 +218,9 @@ describe('NetworkController', () => {
                     pollingInterval: 12000,
                   },
                 });
-                expect(controller.provider).toBe(fakeMetamaskProvider);
+                expect(controller.getProviderAndBlockTracker().provider).toBe(
+                  fakeMetamaskProvider,
+                );
               },
             );
           });
@@ -249,7 +251,7 @@ describe('NetworkController', () => {
 
                 controller.providerConfig = buildProviderConfig();
                 controller.providerConfig = buildProviderConfig();
-                assert(controller.provider);
+                assert(controller.getProviderAndBlockTracker().provider);
                 jest.runAllTimers();
 
                 expect(fakeMetamaskProviders[0].stop).toHaveBeenCalled();
@@ -314,7 +316,9 @@ describe('NetworkController', () => {
                       {
                         produceEvents: () => {
                           controller.providerConfig = buildProviderConfig();
-                          assert(controller.provider);
+                          assert(
+                            controller.getProviderAndBlockTracker().provider,
+                          );
                         },
                       },
                     );
@@ -323,7 +327,9 @@ describe('NetworkController', () => {
                       propertyPath: ['network'],
                       count: 2,
                       produceStateChanges: () => {
-                        controller.provider.emit('error', { some: 'error' });
+                        controller
+                          .getProviderAndBlockTracker()
+                          .provider.emit('error', { some: 'error' });
                       },
                     });
                     expect(controller.state.network).toBe('2');
@@ -380,7 +386,9 @@ describe('NetworkController', () => {
                       {
                         produceEvents: () => {
                           controller.providerConfig = buildProviderConfig();
-                          assert(controller.provider);
+                          assert(
+                            controller.getProviderAndBlockTracker().provider,
+                          );
                         },
                       },
                     );
@@ -389,7 +397,9 @@ describe('NetworkController', () => {
                       propertyPath: ['network'],
                       count: 0,
                       produceStateChanges: () => {
-                        controller.provider.emit('error', { some: 'error' });
+                        controller
+                          .getProviderAndBlockTracker()
+                          .provider.emit('error', { some: 'error' });
                       },
                     });
                     expect(controller.state.network).toBe('1');
@@ -432,7 +442,9 @@ describe('NetworkController', () => {
                 rpcUrl: 'http://localhost:8545',
                 ticker: undefined,
               });
-              expect(controller.provider).toBe(fakeMetamaskProvider);
+              expect(controller.getProviderAndBlockTracker().provider).toBe(
+                fakeMetamaskProvider,
+              );
             },
           );
         });
@@ -458,7 +470,7 @@ describe('NetworkController', () => {
 
               controller.providerConfig = buildProviderConfig();
               controller.providerConfig = buildProviderConfig();
-              assert(controller.provider);
+              assert(controller.getProviderAndBlockTracker().provider);
               jest.runAllTimers();
 
               expect(fakeMetamaskProviders[0].stop).toHaveBeenCalled();
@@ -516,7 +528,9 @@ describe('NetworkController', () => {
                     {
                       produceEvents: () => {
                         controller.providerConfig = buildProviderConfig();
-                        assert(controller.provider);
+                        assert(
+                          controller.getProviderAndBlockTracker().provider,
+                        );
                       },
                     },
                   );
@@ -525,7 +539,9 @@ describe('NetworkController', () => {
                     propertyPath: ['network'],
                     count: 2,
                     produceStateChanges: () => {
-                      controller.provider.emit('error', { some: 'error' });
+                      controller
+                        .getProviderAndBlockTracker()
+                        .provider.emit('error', { some: 'error' });
                     },
                   });
                   expect(controller.state.network).toBe('2');
@@ -575,7 +591,9 @@ describe('NetworkController', () => {
                     {
                       produceEvents: () => {
                         controller.providerConfig = buildProviderConfig();
-                        assert(controller.provider);
+                        assert(
+                          controller.getProviderAndBlockTracker().provider,
+                        );
                       },
                     },
                   );
@@ -584,7 +602,9 @@ describe('NetworkController', () => {
                     propertyPath: ['network'],
                     count: 0,
                     produceStateChanges: () => {
-                      controller.provider.emit('error', { some: 'error' });
+                      controller
+                        .getProviderAndBlockTracker()
+                        .provider.emit('error', { some: 'error' });
                     },
                   });
                   expect(controller.state.network).toBe('1');
@@ -629,7 +649,9 @@ describe('NetworkController', () => {
                   rpcUrl: 'http://example.com',
                   ticker: 'ABC',
                 });
-                expect(controller.provider).toBe(fakeMetamaskProvider);
+                expect(controller.getProviderAndBlockTracker().provider).toBe(
+                  fakeMetamaskProvider,
+                );
               },
             );
           });
@@ -656,7 +678,7 @@ describe('NetworkController', () => {
 
                 controller.providerConfig = buildProviderConfig();
                 controller.providerConfig = buildProviderConfig();
-                assert(controller.provider);
+                assert(controller.getProviderAndBlockTracker().provider);
                 jest.runAllTimers();
 
                 expect(fakeMetamaskProviders[0].stop).toHaveBeenCalled();
@@ -715,7 +737,9 @@ describe('NetworkController', () => {
                       {
                         produceEvents: () => {
                           controller.providerConfig = buildProviderConfig();
-                          assert(controller.provider);
+                          assert(
+                            controller.getProviderAndBlockTracker().provider,
+                          );
                         },
                       },
                     );
@@ -724,7 +748,9 @@ describe('NetworkController', () => {
                       propertyPath: ['network'],
                       count: 2,
                       produceStateChanges: () => {
-                        controller.provider.emit('error', { some: 'error' });
+                        controller
+                          .getProviderAndBlockTracker()
+                          .provider.emit('error', { some: 'error' });
                       },
                     });
                     expect(controller.state.network).toBe('2');
@@ -775,7 +801,9 @@ describe('NetworkController', () => {
                       {
                         produceEvents: () => {
                           controller.providerConfig = buildProviderConfig();
-                          assert(controller.provider);
+                          assert(
+                            controller.getProviderAndBlockTracker().provider,
+                          );
                         },
                       },
                     );
@@ -784,7 +812,9 @@ describe('NetworkController', () => {
                       propertyPath: ['network'],
                       count: 0,
                       produceStateChanges: () => {
-                        controller.provider.emit('error', { some: 'error' });
+                        controller
+                          .getProviderAndBlockTracker()
+                          .provider.emit('error', { some: 'error' });
                       },
                     });
                     expect(controller.state.network).toBe('1');
@@ -796,7 +826,7 @@ describe('NetworkController', () => {
         });
 
         describe('if the RPC target is not set', () => {
-          it('does not set the provider', async () => {
+          it('should throw Provider not set', async () => {
             await withController(
               {
                 state: {
@@ -811,10 +841,14 @@ describe('NetworkController', () => {
                   fakeMetamaskProvider,
                 );
 
-                controller.providerConfig = buildProviderConfig();
+                expect(
+                  () => (controller.providerConfig = buildProviderConfig()),
+                ).toThrow('Provider not set');
 
                 expect(createMetamaskProviderMock).not.toHaveBeenCalled();
-                expect(controller.provider).toBeUndefined();
+                expect(
+                  controller.getProviderAndBlockTracker().provider,
+                ).toBeUndefined();
               },
             );
           });
@@ -1285,7 +1319,9 @@ describe('NetworkController', () => {
                 pollingInterval: 12000,
               },
             });
-            expect(controller.provider).toBe(fakeMetamaskProvider);
+            expect(controller.getProviderAndBlockTracker().provider).toBe(
+              fakeMetamaskProvider,
+            );
           },
         );
       });
@@ -1347,7 +1383,7 @@ describe('NetworkController', () => {
 
           controller.setProviderType('mainnet' as const);
           controller.setProviderType('mainnet' as const);
-          assert(controller.provider);
+          assert(controller.getProviderAndBlockTracker().provider);
           jest.runAllTimers();
 
           expect(fakeMetamaskProviders[0].stop).toHaveBeenCalled();
@@ -1420,7 +1456,7 @@ describe('NetworkController', () => {
                 {
                   produceEvents: () => {
                     controller.setProviderType('mainnet' as const);
-                    assert(controller.provider);
+                    assert(controller.getProviderAndBlockTracker().provider);
                   },
                 },
               );
@@ -1428,7 +1464,9 @@ describe('NetworkController', () => {
               await waitForStateChanges(messenger, {
                 propertyPath: ['network'],
                 produceStateChanges: () => {
-                  controller.provider.emit('error', { some: 'error' });
+                  controller
+                    .getProviderAndBlockTracker()
+                    .provider.emit('error', { some: 'error' });
                 },
               });
               expect(controller.state.network).toBe('42');
@@ -1470,7 +1508,7 @@ describe('NetworkController', () => {
                 {
                   produceEvents: () => {
                     controller.setProviderType('mainnet' as const);
-                    assert(controller.provider);
+                    assert(controller.getProviderAndBlockTracker().provider);
                   },
                 },
               );
@@ -1479,7 +1517,9 @@ describe('NetworkController', () => {
                 propertyPath: ['network'],
                 count: 0,
                 produceStateChanges: () => {
-                  controller.provider.emit('error', { some: 'error' });
+                  controller
+                    .getProviderAndBlockTracker()
+                    .provider.emit('error', { some: 'error' });
                 },
               });
               expect(controller.state.network).toBe('1');
@@ -1602,7 +1642,9 @@ describe('NetworkController', () => {
                   pollingInterval: 12000,
                 },
               });
-              expect(controller.provider).toBe(fakeMetamaskProvider);
+              expect(controller.getProviderAndBlockTracker().provider).toBe(
+                fakeMetamaskProvider,
+              );
             },
           );
         });
@@ -1664,7 +1706,7 @@ describe('NetworkController', () => {
 
             controller.setProviderType(networkType);
             controller.setProviderType(networkType);
-            assert(controller.provider);
+            assert(controller.getProviderAndBlockTracker().provider);
             jest.runAllTimers();
 
             expect(fakeMetamaskProviders[0].stop).toHaveBeenCalled();
@@ -1739,7 +1781,7 @@ describe('NetworkController', () => {
                   {
                     produceEvents: () => {
                       controller.setProviderType(networkType);
-                      assert(controller.provider);
+                      assert(controller.getProviderAndBlockTracker().provider);
                     },
                   },
                 );
@@ -1747,7 +1789,9 @@ describe('NetworkController', () => {
                 await waitForStateChanges(messenger, {
                   propertyPath: ['network'],
                   produceStateChanges: () => {
-                    controller.provider.emit('error', { some: 'error' });
+                    controller
+                      .getProviderAndBlockTracker()
+                      .provider.emit('error', { some: 'error' });
                   },
                 });
                 expect(controller.state.network).toBe('42');
@@ -1791,7 +1835,7 @@ describe('NetworkController', () => {
                   {
                     produceEvents: () => {
                       controller.setProviderType(networkType);
-                      assert(controller.provider);
+                      assert(controller.getProviderAndBlockTracker().provider);
                     },
                   },
                 );
@@ -1800,7 +1844,9 @@ describe('NetworkController', () => {
                   propertyPath: ['network'],
                   count: 0,
                   produceStateChanges: () => {
-                    controller.provider.emit('error', { some: 'error' });
+                    controller
+                      .getProviderAndBlockTracker()
+                      .provider.emit('error', { some: 'error' });
                   },
                 });
                 expect(controller.state.network).toBe('1');
@@ -1882,7 +1928,9 @@ describe('NetworkController', () => {
           controller.setProviderType('rpc' as const);
 
           expect(createMetamaskProviderMock).not.toHaveBeenCalled();
-          expect(controller.provider).toBeUndefined();
+          expect(
+            controller.getProviderAndBlockTracker().provider,
+          ).toBeUndefined();
         });
       });
 
@@ -2000,7 +2048,9 @@ describe('NetworkController', () => {
             rpcUrl: 'http://localhost:8545',
             ticker: undefined,
           });
-          expect(controller.provider).toBe(fakeMetamaskProvider);
+          expect(controller.getProviderAndBlockTracker().provider).toBe(
+            fakeMetamaskProvider,
+          );
         });
       });
 
@@ -2048,7 +2098,7 @@ describe('NetworkController', () => {
 
           controller.setProviderType('localhost' as const);
           controller.setProviderType('localhost' as const);
-          assert(controller.provider);
+          assert(controller.getProviderAndBlockTracker().provider);
           jest.runAllTimers();
 
           expect(fakeMetamaskProviders[0].stop).toHaveBeenCalled();
@@ -2113,7 +2163,7 @@ describe('NetworkController', () => {
                 {
                   produceEvents: () => {
                     controller.setProviderType('localhost' as const);
-                    assert(controller.provider);
+                    assert(controller.getProviderAndBlockTracker().provider);
                   },
                 },
               );
@@ -2121,7 +2171,9 @@ describe('NetworkController', () => {
               await waitForStateChanges(messenger, {
                 propertyPath: ['network'],
                 produceStateChanges: () => {
-                  controller.provider.emit('error', { some: 'error' });
+                  controller
+                    .getProviderAndBlockTracker()
+                    .provider.emit('error', { some: 'error' });
                 },
               });
               expect(controller.state.network).toBe('42');
@@ -2159,7 +2211,7 @@ describe('NetworkController', () => {
                 {
                   produceEvents: () => {
                     controller.setProviderType('localhost' as const);
-                    assert(controller.provider);
+                    assert(controller.getProviderAndBlockTracker().provider);
                   },
                 },
               );
@@ -2168,7 +2220,9 @@ describe('NetworkController', () => {
                 propertyPath: ['network'],
                 count: 0,
                 produceStateChanges: () => {
-                  controller.provider.emit('error', { some: 'error' });
+                  controller
+                    .getProviderAndBlockTracker()
+                    .provider.emit('error', { some: 'error' });
                 },
               });
               expect(controller.state.network).toBe('1');
@@ -2257,7 +2311,9 @@ describe('NetworkController', () => {
             rpcUrl: 'http://example.com',
             ticker: undefined,
           });
-          expect(controller.provider).toBe(fakeMetamaskProvider);
+          expect(controller.getProviderAndBlockTracker().provider).toBe(
+            fakeMetamaskProvider,
+          );
         });
       });
 
@@ -2305,7 +2361,7 @@ describe('NetworkController', () => {
 
           controller.setRpcTarget('http://example.com', '123');
           controller.setRpcTarget('http://example.com', '123');
-          assert(controller.provider);
+          assert(controller.getProviderAndBlockTracker().provider);
           jest.runAllTimers();
 
           expect(fakeMetamaskProviders[0].stop).toHaveBeenCalled();
@@ -2370,7 +2426,7 @@ describe('NetworkController', () => {
                 {
                   produceEvents: () => {
                     controller.setRpcTarget('http://example.com', '123');
-                    assert(controller.provider);
+                    assert(controller.getProviderAndBlockTracker().provider);
                   },
                 },
               );
@@ -2378,7 +2434,9 @@ describe('NetworkController', () => {
               await waitForStateChanges(messenger, {
                 propertyPath: ['network'],
                 produceStateChanges: () => {
-                  controller.provider.emit('error', { some: 'error' });
+                  controller
+                    .getProviderAndBlockTracker()
+                    .provider.emit('error', { some: 'error' });
                 },
               });
               expect(controller.state.network).toBe('42');
@@ -2416,7 +2474,7 @@ describe('NetworkController', () => {
                 {
                   produceEvents: () => {
                     controller.setRpcTarget('http://example.com', '123');
-                    assert(controller.provider);
+                    assert(controller.getProviderAndBlockTracker().provider);
                   },
                 },
               );
@@ -2425,7 +2483,9 @@ describe('NetworkController', () => {
                 propertyPath: ['network'],
                 count: 0,
                 produceStateChanges: () => {
-                  controller.provider.emit('error', { some: 'error' });
+                  controller
+                    .getProviderAndBlockTracker()
+                    .provider.emit('error', { some: 'error' });
                 },
               });
               expect(controller.state.network).toBe('1');
@@ -2527,7 +2587,9 @@ describe('NetworkController', () => {
             rpcUrl: 'http://example.com',
             ticker: 'ABC',
           });
-          expect(controller.provider).toBe(fakeMetamaskProvider);
+          expect(controller.getProviderAndBlockTracker().provider).toBe(
+            fakeMetamaskProvider,
+          );
         });
       });
 
@@ -2590,7 +2652,7 @@ describe('NetworkController', () => {
             'ABC',
             'cool network',
           );
-          assert(controller.provider);
+          assert(controller.getProviderAndBlockTracker().provider);
           jest.runAllTimers();
 
           expect(fakeMetamaskProviders[0].stop).toHaveBeenCalled();
@@ -2665,7 +2727,7 @@ describe('NetworkController', () => {
                       'ABC',
                       'cool network',
                     );
-                    assert(controller.provider);
+                    assert(controller.getProviderAndBlockTracker().provider);
                   },
                 },
               );
@@ -2673,7 +2735,9 @@ describe('NetworkController', () => {
               await waitForStateChanges(messenger, {
                 propertyPath: ['network'],
                 produceStateChanges: () => {
-                  controller.provider.emit('error', { some: 'error' });
+                  controller
+                    .getProviderAndBlockTracker()
+                    .provider.emit('error', { some: 'error' });
                 },
               });
               expect(controller.state.network).toBe('42');
@@ -2716,7 +2780,7 @@ describe('NetworkController', () => {
                       'ABC',
                       'cool network',
                     );
-                    assert(controller.provider);
+                    assert(controller.getProviderAndBlockTracker().provider);
                   },
                 },
               );
@@ -2725,7 +2789,9 @@ describe('NetworkController', () => {
                 propertyPath: ['network'],
                 count: 0,
                 produceStateChanges: () => {
-                  controller.provider.emit('error', { some: 'error' });
+                  controller
+                    .getProviderAndBlockTracker()
+                    .provider.emit('error', { some: 'error' });
                 },
               });
               expect(controller.state.network).toBe('1');
@@ -3791,7 +3857,7 @@ async function withController<ReturnValue>(
   try {
     return await fn({ controller });
   } finally {
-    controller.provider?.stop();
+    controller.getProviderAndBlockTracker().provider?.stop();
   }
 }
 
@@ -3912,8 +3978,11 @@ async function setFakeProvider(
   }
 
   controller.providerConfig = buildProviderConfig();
-  await waitForResult(true, () => controller.provider !== undefined);
-  assert(controller.provider);
+  await waitForResult(
+    true,
+    () => controller.getProviderAndBlockTracker().provider !== undefined,
+  );
+  assert(controller.getProviderAndBlockTracker().provider);
 
   if (stubLookupNetworkWhileSetting) {
     lookupNetworkMock.mockRestore();
@@ -3922,7 +3991,7 @@ async function setFakeProvider(
     lookupGetEIP1559CompatibilityMock.mockRestore();
   }
 
-  return controller.provider;
+  return controller.getProviderAndBlockTracker().provider;
 }
 
 /**

@@ -1844,6 +1844,7 @@ __metadata:
     immer: ^9.0.6
     jest: ^26.4.2
     sinon: ^9.2.4
+    swappable-obj-proxy: ^1.1.0
     ts-jest: ^26.5.2
     typedoc: ^0.22.15
     typedoc-plugin-missing-exports: ^0.22.6
@@ -11207,6 +11208,13 @@ __metadata:
     has-flag: ^4.0.0
     supports-color: ^7.0.0
   checksum: e4f430c870a258c9854b8bd7f166a9c1e76e3b851da84d4399d6a8f1d4a485e4ec36c16455dde80acf06c86e7c0a6df76ed22b6a4644a6ae3eced8616b3f21b5
+  languageName: node
+  linkType: hard
+
+"swappable-obj-proxy@npm:^1.1.0":
+  version: 1.1.0
+  resolution: "swappable-obj-proxy@npm:1.1.0"
+  checksum: 6b1d087e6d03fdb89f94bcb251a407d832964813ed9129f46096dcf99fdbd44398dadbed941dcaeb8d07b89e400fd603f9a589aa01938916b1d0d2a1c9906c65
   languageName: node
   linkType: hard
 

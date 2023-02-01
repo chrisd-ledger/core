@@ -2,6 +2,7 @@ import EthQuery from 'eth-query';
 import Subprovider from 'web3-provider-engine/subproviders/provider';
 import createInfuraProvider from 'eth-json-rpc-infura/src/createProvider';
 import createMetamaskProvider from 'web3-provider-engine/zero';
+import { createEventEmitterProxy } from 'swappable-obj-proxy';
 import { Mutex } from 'async-mutex';
 import type { Patch } from 'immer';
 import {
@@ -210,8 +211,9 @@ export class NetworkController extends BaseControllerV2<
   }
 
   private registerProvider() {
-    this.provider.on('error', this.verifyNetwork.bind(this));
-    this.ethQuery = new EthQuery(this.provider);
+    const { provider } = this.getProviderAndBlockTracker();
+    provider.on('error', this.verifyNetwork.bind(this));
+    this.ethQuery = new EthQuery(provider);
   }
 
   private setupInfuraProvider(type: NetworkType) {
@@ -262,8 +264,11 @@ export class NetworkController extends BaseControllerV2<
   }
 
   private updateProvider(provider: any) {
-    this.safelyStopProvider(this.provider);
-    this.provider = provider;
+    this.safelyStopProvider(this.#provider);
+    this.setProviderAndBlockTracker({
+      provider,
+      blockTracker: provider._blockTracker,
+    });
     this.registerProvider();
   }
 
@@ -278,9 +283,49 @@ export class NetworkController extends BaseControllerV2<
   }
 
   /**
-   * Ethereum provider object for the current network
+   * Ethereum provider and block tracker object for the current network
    */
-  provider: any;
+  #provider: any;
+
+  #blockTracker: any;
+
+  /**
+   * provider and block tracker proxies - because the network changes
+   */
+  providerProxy: any;
+
+  blockTrackerProxy: any;
+
+  getProviderAndBlockTracker() {
+    const provider = this.providerProxy;
+    const blockTracker = this.blockTrackerProxy;
+    return { provider, blockTracker };
+  }
+
+  setProviderAndBlockTracker({
+    provider,
+    blockTracker,
+  }: {
+    provider: any;
+    blockTracker: any;
+  }) {
+    // update or initialize proxies
+    if (this.providerProxy) {
+      this.providerProxy.setTarget(provider);
+    } else {
+      this.providerProxy = createEventEmitterProxy(provider);
+    }
+    if (this.blockTrackerProxy) {
+      this.blockTrackerProxy.setTarget(blockTracker);
+    } else {
+      this.blockTrackerProxy = createEventEmitterProxy(blockTracker, {
+        eventFilter: 'skipInternal',
+      });
+    }
+    // set new provider and blockTracker
+    this.#provider = provider;
+    this.#blockTracker = blockTracker;
+  }
 
   /**
    * Sets a new configuration for web3-provider-engine.
@@ -294,9 +339,10 @@ export class NetworkController extends BaseControllerV2<
     const { type, rpcTarget, chainId, ticker, nickname } =
       this.state.providerConfig;
     this.initializeProvider(type, rpcTarget, chainId, ticker, nickname);
-    if (this.provider !== undefined) {
-      this.registerProvider();
+    if (!this.#provider) {
+      throw Error('Provider not set');
     }
+    this.registerProvider();
     this.lookupNetwork();
   }
 
@@ -317,6 +363,15 @@ export class NetworkController extends BaseControllerV2<
         },
       );
     });
+  }
+
+  /**
+   * Destroy the network controller, stopping any ongoing polling.
+   *
+   * In-progress requests will not be aborted.
+   */
+  async destroy() {
+    await this.#blockTracker?.destroy();
   }
 
   /**

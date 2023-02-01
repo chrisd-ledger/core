@@ -59,6 +59,8 @@ export type FakeProviderStub = {
     }
 );
 
+class FakeBlockTracker extends EventEmitter {}
+
 /**
  * The set of options that the FakeProviderEngine constructor takes.
  *
@@ -78,13 +80,15 @@ interface FakeProviderEngineOptions {
  * succinct than using Jest's mocking API.
  */
 export class FakeProviderEngine extends EventEmitter implements ProviderEngine {
-  #isStopped: boolean;
+  _isStopped: boolean;
 
-  #stubs: FakeProviderStub[];
+  _stubs: FakeProviderStub[];
 
   calledStubs: FakeProviderStub[];
 
-  #originalStubs: FakeProviderStub[];
+  _originalStubs: FakeProviderStub[];
+
+  _blockTracker: FakeBlockTracker;
 
   /**
    * Makes a new instance of the fake provider.
@@ -95,14 +99,15 @@ export class FakeProviderEngine extends EventEmitter implements ProviderEngine {
    */
   constructor({ stubs = [] }: FakeProviderEngineOptions) {
     super();
-    this.#originalStubs = stubs;
-    this.#stubs = this.#originalStubs.slice();
+    this._originalStubs = stubs;
+    this._stubs = this._originalStubs.slice();
     this.calledStubs = [];
-    this.#isStopped = false;
+    this._isStopped = false;
+    this._blockTracker = new FakeBlockTracker();
   }
 
   stop() {
-    this.#isStopped = true;
+    this._isStopped = true;
   }
 
   sendAsync<P, V>(
@@ -113,7 +118,7 @@ export class FakeProviderEngine extends EventEmitter implements ProviderEngine {
       throw new Error("Arrays aren't supported");
     }
 
-    const index = this.#stubs.findIndex((stub) => {
+    const index = this._stubs.findIndex((stub) => {
       return (
         stub.request.method === payload.method &&
         (!('params' in stub.request) ||
@@ -121,7 +126,7 @@ export class FakeProviderEngine extends EventEmitter implements ProviderEngine {
       );
     });
 
-    if (this.#isStopped) {
+    if (this._isStopped) {
       console.warn(`The provider has been stopped, yet sendAsync has somehow been called. If this
 were not a fake provider, it's likely nothing would happen and the request would
 be sent anyway, but this probably means you have a test that ran an asynchronous
@@ -130,18 +135,18 @@ operation that was not fulfilled before the test ended.`);
     }
 
     if (index !== -1) {
-      const stub = this.#stubs[index];
+      const stub = this._stubs[index];
 
       if (stub.discardAfterMatching !== false) {
-        this.#stubs.splice(index, 1);
+        this._stubs.splice(index, 1);
       }
 
       if (stub.delay) {
         originalSetTimeout(() => {
-          this.#handleRequest(stub, callback);
+          this._handleRequest(stub, callback);
         }, stub.delay);
       } else {
-        this.#handleRequest(stub, callback);
+        this._handleRequest(stub, callback);
       }
 
       this.calledStubs.push({ ...stub });
@@ -168,7 +173,7 @@ operation that was not fulfilled before the test ended.`);
     }
   }
 
-  #handleRequest<P, V>(
+  _handleRequest<P, V>(
     stub: FakeProviderStub,
     callback: (error: unknown, response: RpcResponse<RpcPayload<P>, V>) => void,
   ) {
