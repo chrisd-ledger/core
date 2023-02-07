@@ -23,3 +23,9 @@ export type Json =
   | string
   | Json[]
   | { [prop: string]: Json };
+
+export type SideEffects = {
+  permittedHandlers: (() => void)[];
+  failureHandlers: (() => void)[];
+  successHandlers: (() => void)[];
+};
